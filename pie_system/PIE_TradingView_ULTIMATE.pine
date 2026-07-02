@@ -465,11 +465,13 @@ if CONF and inWin
 var table stats = table.new(position.bottom_right, 2, 14,
      frame_color = color.new(color.gray, 40), frame_width = 1,
      border_color = color.new(color.gray, 75), border_width = 1)
-if barstate.islast and showStats
+
+statRow(r, ad, n) =>
     bgS = color.new(color.black, 55)
-    statRow(r, ad, n) =>
-        table.cell(stats, 0, r, ad, text_color = color.silver, bgcolor = bgS, text_size = size.tiny, text_halign = text.align_left)
-        table.cell(stats, 1, r, str.tostring(n), text_color = n > 0 ? color.white : color.new(color.gray, 40), bgcolor = bgS, text_size = size.tiny)
+    table.cell(stats, 0, r, ad, text_color = color.silver, bgcolor = bgS, text_size = size.tiny, text_halign = text.align_left)
+    table.cell(stats, 1, r, str.tostring(n), text_color = n > 0 ? color.white : color.new(color.gray, 40), bgcolor = bgS, text_size = size.tiny)
+
+if barstate.islast and showStats
     table.cell(stats, 0, 0, "OLUŞUM SAYISI", text_color = #FFD600, bgcolor = color.new(color.black, 25), text_size = size.tiny)
     table.cell(stats, 1, 0, "son " + str.tostring(lookN), text_color = #FFD600, bgcolor = color.new(color.black, 25), text_size = size.tiny)
     statRow(1, "Testere", cTst)
