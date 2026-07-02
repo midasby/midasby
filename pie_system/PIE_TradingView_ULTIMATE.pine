@@ -1,0 +1,436 @@
+//@version=5
+// ═══════════════════════════════════════════════════════════════════════════
+//  PIE ULTIMATE v3 — RedSword "Price Is Everything"
+//  Kaynaklar: Para Sihirbazı (Magician11) + Price Action TR notları (3 PDF)
+//
+//  TÜM STRATEJİLER:
+//  ■ Momentum & Karşıt Momentum & Momentum Kaybı
+//  ■ PinBar + Çoklu PinBar (2-3 ardışık = daha değerli)
+//  ■ Engulf + Sihirli Engulf (iğneler 2. barın yönünde, arka iğnesiz)
+//  ■ Engulf Simetri (arada 2-6 bekleme barı)
+//  ■ Üçlü Çift Engulf (Ters Engulf) + Dörtlü Çift Engulf
+//  ■ Bobin (3+ git-gel) + TESTERE (kırılım sonrası TEST aşamasında giriş!)
+//  ■ At Nalı (ortadaki iğneler son mum yönündeyse +değerli)
+//  ■ Ying Yang  ■ Fake PinBar (inside-bar şartlı)  ■ Pin+Engulf
+//  ■ Trend Devam (uzun-kısa-uzun)  ■ Boşalt-Doldur
+//  ■ İstekli Mum, Marubozu, İğnesiz Baş (bilgi işaretleri)
+//  ■ Quasimodo bölge uyarısı
+//  ■ Supdem: TAZE/TEST takibi + Sihirli Supdem (Spike+3 mum)
+//  ■ TUZAK FİLTRESİ (ard arda kesilen engulflar → sinyal susturulur!)
+//  ■ Üst zaman dilimi teyidi + 1-5 yıldız puanlama
+//
+//  KİTAP: "Kırılır kırılmaz İŞLEME GİRİLMEZ — başarılı TESTİ bekle!"
+//  KİTAP: "En az 2-3 teyit almadan hiçbir işleme girilmez!"
+// ═══════════════════════════════════════════════════════════════════════════
+indicator("PIE ULTIMATE — Para Sihirbazı + Price Action TR", "PIE ULT", overlay = true,
+     max_boxes_count = 300, max_labels_count = 400, max_lines_count = 100)
+
+// ╔═══ ① TARAMA PENCERESİ (SENİN SEÇİMİN) ════════════════════════╗
+G0 = "① Tarama Penceresi"
+lookN = input.int(300, "Son kaç mum taransın?", minval = 20, maxval = 5000, group = G0,
+     tooltip = "Sinyaller ve bölgeler sadece son bu kadar mumda çizilir. Eski grafik temiz kalır.")
+
+G1 = "② Sinyal Kalitesi"
+minScore = input.int(3, "Minimum teyit (yıldız)", minval = 2, maxval = 5, group = G1,
+     tooltip = "Kitap: 'En az 2, daha iyisi 3 teyit'")
+trendFlt = input.bool(true, "Trendin tersine sinyal gösterme", group = G1)
+useHTF   = input.bool(true, "Üst zaman dilimi teyidi", group = G1)
+htfMult  = input.string("4x", "Üst TF çarpanı", options = ["2x","4x","6x"], group = G1)
+useTrap  = input.bool(true, "TUZAK filtresi (kesilen engulflarda sustur)", group = G1,
+     tooltip = "Kitap: 'Ard arda kesilen engulflarda kurulan tuzakların haddi hesabı yoktur'")
+
+G2 = "③ Formasyonlar"
+showTst  = input.bool(true, "TESTERE (test aşaması girişi)", group = G2)
+showD4   = input.bool(true, "Dörtlü Çift Engulf", group = G2)
+showMag  = input.bool(true, "Sihirli Engulf", group = G2)
+showPE   = input.bool(true, "Pin+Engulf", group = G2)
+showSim  = input.bool(true, "Engulf Simetri", group = G2)
+showD3   = input.bool(true, "Üçlü Çift (Ters) Engulf", group = G2)
+showTD   = input.bool(true, "Trend Devam", group = G2)
+showNal  = input.bool(true, "At Nalı", group = G2)
+showFake = input.bool(true, "Fake PinBar (inside-bar)", group = G2)
+showCPin = input.bool(true, "Çoklu PinBar", group = G2)
+showPin  = input.bool(true, "PinBar", group = G2)
+showYY   = input.bool(true, "Ying Yang", group = G2)
+showBD   = input.bool(true, "Boşalt-Doldur", group = G2)
+showQM   = input.bool(true, "Quasimodo bölge uyarısı", group = G2)
+
+G3 = "④ Görünüm"
+showZones = input.bool(true, "Supdem kutuları (TAZE/TEST)", group = G3)
+zoneLen   = input.int(60, "Kutu uzunluğu (bar)", minval = 15, maxval = 200, group = G3)
+showBob   = input.bool(true, "Bobin kutuları", group = G3)
+showMom   = input.bool(true, "Momentum mum renklendirme", group = G3)
+showInfo  = input.bool(true, "Bilgi işaretleri (istekli mum, marubozu...)", group = G3)
+showPanel = input.bool(true, "Kontrol paneli", group = G3)
+cleanMode = input.bool(true, "TEMİZ MOD (bar başına tek en iyi sinyal)", group = G3)
+
+// ╔═══ TEMEL ═════════════════════════════════════════════════════╗
+body  = math.abs(close - open)
+rng   = high - low
+uW    = high - math.max(open, close)
+dW    = math.min(open, close) - low
+bl    = close > open
+br    = close < open
+aBody = ta.sma(body, 20)
+aRng  = ta.sma(rng, 20)
+atr   = ta.atr(14)
+CONF  = barstate.isconfirmed
+inWin = last_bar_index - bar_index <= lookN
+
+// ╔═══ MOMENTUM AİLESİ ═══════════════════════════════════════════╗
+isMom = body > aBody * 1.5 or rng > aRng * 1.5
+barcolor(showMom and inWin and isMom and bl ? color.new(#00E676, 10) : na, title = "Momentum AL")
+barcolor(showMom and inWin and isMom and br ? color.new(#FF1744, 10) : na, title = "Momentum SAT")
+
+// Karşıt Momentum — denge değişimi (kitap: üst TF'de pinbar görünümü verir)
+karsitMom = isMom[1] and bl[1] != bl and body >= body[1] * 0.8
+
+// Momentum Kaybı — momentumlu bardan sonra cılız zıt mumlar
+momKaybiUp = isMom[2] and bl[2] and br[1] and br and not isMom[1] and not isMom and close < close[2]
+momKaybiDn = isMom[2] and br[2] and bl[1] and bl and not isMom[1] and not isMom and close > close[2]
+
+// ╔═══ TREND (HH/HL — LH/LL) ═════════════════════════════════════╗
+ph = ta.pivothigh(high, 5, 5)
+pl = ta.pivotlow (low,  5, 5)
+var float h1 = na, var float h2 = na, var int hB1 = na
+var float l1 = na, var float l2 = na, var int lB1 = na
+if not na(ph)
+    h2 := h1
+    h1 := ph
+    hB1 := bar_index - 5
+if not na(pl)
+    l2 := l1
+    l1 := pl
+    lB1 := bar_index - 5
+upTr  = not na(h2) and not na(l2) and h1 > h2 and l1 > l2
+dnTr  = not na(h2) and not na(l2) and h1 < h2 and l1 < l2
+trDir = upTr ? 1 : dnTr ? -1 : 0
+
+// ╔═══ ÜST ZAMAN DİLİMİ ══════════════════════════════════════════╗
+htfRes() =>
+    m = timeframe.multiplier
+    f = htfMult == "2x" ? 2 : htfMult == "4x" ? 4 : 6
+    timeframe.isintraday ? str.tostring(m * f) : timeframe.period == "D" ? "W" : "M"
+[htfC, htfS] = request.security(syminfo.tickerid, htfRes(),
+     [close, ta.sma(close, 20)], lookahead = barmerge.lookahead_off)
+htfDir = htfC > htfS ? 1 : htfC < htfS ? -1 : 0
+
+// ╔═══ MUM TİPLERİ (Price Action TR sözlüğü) ═════════════════════╗
+// İstekli Mum: gövde uzun, gittiği yönde iğne, arkası iğnesiz
+istekliUp = bl and body > aBody * 1.3 and uW > body * 0.25 and dW < body * 0.1
+istekliDn = br and body > aBody * 1.3 and dW > body * 0.25 and uW < body * 0.1
+// Marubozu: hiç iğnesiz hacimli mum
+marubozu  = body > aBody * 1.5 and uW < rng * 0.04 and dW < rng * 0.04
+// İğnesiz Baş: tepede iğnesiz açılan düşüş mumu (satış baskısı)
+ignesizBas = br and uW < rng * 0.05 and body > aBody
+
+// ╔═══ FORMASYONLAR ══════════════════════════════════════════════╗
+// PinBar
+smB  = body < rng * 0.35 and rng > 0
+pinB = smB and dW > body * 2 and dW > uW * 2 and dW > rng * 0.5
+pinS = smB and uW > body * 2 and uW > dW * 2 and uW > rng * 0.5
+// Çoklu PinBar — kitap: "2-3 tanesi tek pinbardan çok daha değerli"
+cpinB = pinB and (pinB[1] or pinB[2])
+cpinS = pinS and (pinS[1] or pinS[2])
+
+// Engulf
+engB = br[1] and bl and body > body[1] * 1.05 and close > open[1] and open <= close[1]
+engS = bl[1] and br and body > body[1] * 1.05 and close < open[1] and open >= close[1]
+
+// Sihirli Engulf — kitap: "her iki barın iğnesi 2. barın gideceği yönde, arka iğnesiz"
+magB = engB and uW[1] > body[1] * 0.3 and uW > body * 0.15 and dW < body * 0.15
+magS = engS and dW[1] > body[1] * 0.3 and dW > body * 0.15 and uW < body * 0.15
+
+// Dörtlü Çift Engulf — zıt yönlü iki engulf peş peşe (4 mum)
+d4B = engS[2] and engB and close > close[2]
+d4S = engB[2] and engS and close < close[2]
+
+// Engulf Simetri — zıt engulflar arasında 2-6 bekleme barı
+sinceEngS = nz(ta.barssince(engS), 999)
+sinceEngB = nz(ta.barssince(engB), 999)
+simB = engB and sinceEngS >= 3 and sinceEngS <= 7
+simS = engS and sinceEngB >= 3 and sinceEngB <= 7
+
+// Üçlü Çift (Ters) Engulf — 3 mum, her biri öncekinden uzun, zıt yönlü
+d3B = bl[2] and br[1] and bl and body[1] > body[2] * 1.05 and body > body[1] * 1.05
+d3S = br[2] and bl[1] and br and body[1] > body[2] * 1.05 and body > body[1] * 1.05
+
+// Trend Devam — uzun-kısa-uzun, orta ters yönde, trendde
+tdB = trDir == 1 and bl[2] and br[1] and bl and body[2] > body[1] * 1.5 and body > body[1] * 1.5
+tdS = trDir == -1 and br[2] and bl[1] and br and body[2] > body[1] * 1.5 and body > body[1] * 1.5
+
+// At Nalı — kenarlar ortadan NET uzun; ortadaki iğneler son mum yönündeyse +değerli
+nalOk = math.min(body, body[3]) > math.max(body[1], body[2]) * 1.15
+nalB  = nalOk and br[3] and bl[2] and br[1] and bl
+nalS  = nalOk and bl[3] and br[2] and bl[1] and br
+nalBonusB = nalB and uW[1] > body[1] * 0.5 and uW[2] > body[2] * 0.5
+nalBonusS = nalS and dW[1] > body[1] * 0.5 and dW[2] > body[2] * 0.5
+
+// Ying Yang
+mwk = atr * 0.25
+yyB = bl[1] and bl and uW[1] > mwk and dW[1] < uW[1] * 0.5 and dW > mwk and uW < dW * 0.5
+yyS = br[1] and br and dW[1] > mwk and uW[1] < dW[1] * 0.5 and uW > mwk and dW < uW * 0.5
+
+// Fake PinBar — kitap: inside bar şart (fake'ten önce gölgede en az 1 mum)
+motherBig = body[3] > aBody[3] * 1.2
+inside2   = high[2] <= high[3] and low[2] >= low[3]
+inside1   = high[1] <= high[3] and low[1] >= low[3]
+fakeS = motherBig and inside2 and inside1 and high > high[3] and close < high[3]
+fakeB = motherBig and inside2 and inside1 and low < low[3] and close > low[3]
+
+// Pin+Engulf — pin bardan sonra 2 teyit barı engulf oluşturursa
+peB = pinB[2] and engB
+peS = pinS[2] and engS
+
+// Boşalt-Doldur — iğnelenen bölge büyük barla doldurulur
+bdB = dW[1] > atr * 1.2 and bl and body > atr and body > aBody * 1.3
+bdS = uW[1] > atr * 1.2 and br and body > atr and body > aBody * 1.3
+
+// ╔═══ TUZAK FİLTRESİ ════════════════════════════════════════════╗
+// Kitap: "Ard arda kesilen engulflar = tuzak. İşleme girilmez!"
+cntEngB = math.sum(engB ? 1.0 : 0.0, 8)
+cntEngS = math.sum(engS ? 1.0 : 0.0, 8)
+isTrap  = useTrap and cntEngB >= 2 and cntEngS >= 2
+
+// ╔═══ BOBİN + TESTERE (test aşaması girişi!) ════════════════════╗
+bobRange = math.max(high, high[1], high[2], high[3], high[4]) - math.min(low, low[1], low[2], low[3], low[4])
+dirChg   = (bl != bl[1] ? 1 : 0) + (bl[1] != bl[2] ? 1 : 0) + (bl[2] != bl[3] ? 1 : 0) + (bl[3] != bl[4] ? 1 : 0)
+isBobin  = bobRange < atr * 1.7 and dirChg >= 3 and body < aBody
+
+var float bobHiZ = na, var float bobLoZ = na
+var float brkLvl = na, var int brkDir = 0, var int brkBar = na
+
+if isBobin and not isBobin[1] and CONF
+    bobHiZ := math.max(high, high[1], high[2], high[3], high[4])
+    bobLoZ := math.min(low, low[1], low[2], low[3], low[4])
+    if showBob and inWin
+        box.new(bar_index - 4, bobHiZ, bar_index + 12, bobLoZ,
+             border_color = color.new(#FFD600, 30), border_width = 1,
+             bgcolor = color.new(#FFD600, 92),
+             text = "BOBİN", text_color = color.new(#FFD600, 10),
+             text_size = size.tiny, text_halign = text.align_left)
+
+// Bobin kırılımı — momentumlu kırılım testere hazırlığı
+if not na(bobHiZ) and CONF
+    if close > bobHiZ and body > aBody * 1.2
+        brkLvl := bobHiZ
+        brkDir := 1
+        brkBar := bar_index
+        bobHiZ := na
+        bobLoZ := na
+    else if close < bobLoZ and body > aBody * 1.2
+        brkLvl := bobLoZ
+        brkDir := -1
+        brkBar := bar_index
+        bobHiZ := na
+        bobLoZ := na
+
+// TESTERE sinyali — kitap: "4. kademede, TEST aşamasında dahil oluyoruz"
+tstB = brkDir == 1 and not na(brkLvl) and bar_index > brkBar + 1 and low <= brkLvl + atr * 0.3 and close > brkLvl and bl
+tstS = brkDir == -1 and not na(brkLvl) and bar_index > brkBar + 1 and high >= brkLvl - atr * 0.3 and close < brkLvl and br
+if (tstB or tstS or (not na(brkBar) and bar_index - brkBar > 40)) and CONF
+    brkLvl := na
+    brkDir := 0
+
+// ╔═══ QUASIMODO BÖLGE UYARISI ═══════════════════════════════════╗
+qmSellCtx = not na(h2) and not na(l2) and h1 > h2 and l1 < l2 and lB1 > hB1
+qmBuyCtx  = not na(h2) and not na(l2) and l1 < l2 and h1 > h2 and hB1 > lB1
+nearH2 = qmSellCtx and math.abs(close - h2) < atr * 0.5
+nearL2 = qmBuyCtx  and math.abs(close - l2) < atr * 0.5
+qmS = showQM and nearH2 and not nearH2[1]
+qmB = showQM and nearL2 and not nearL2[1]
+
+// ╔═══ SUPDEM KUTULARI (TAZE/TEST) ═══════════════════════════════╗
+var zBoxes = array.new_box()
+var zTests = array.new_int()
+var zKind  = array.new_int()
+
+mkZone(dem, mag) =>
+    top = high[1] + atr * 0.05
+    bot = low[1] - atr * 0.05
+    col = dem ? (mag ? #00C853 : #26A69A) : (mag ? #FF6D00 : #EF5350)
+    b = box.new(bar_index - 1, top, bar_index + zoneLen, bot,
+         border_color = color.new(col, mag ? 0 : 40), border_width = mag ? 2 : 1,
+         bgcolor = color.new(col, mag ? 80 : 88),
+         text = (mag ? "✦ " : "") + (dem ? "TALEP • TAZE" : "ARZ • TAZE"),
+         text_color = color.new(col, 0), text_size = size.tiny,
+         text_halign = text.align_right, text_valign = text.align_top)
+    array.push(zBoxes, b)
+    array.push(zTests, 0)
+    array.push(zKind, dem ? 1 : -1)
+
+// Sihirli Supdem — Spike + 3 mum (kitap: kuvvetli bölge)
+spike = rng[3] > atr * 1.8
+magSupB = spike and bl[2] and br[1] and bl
+magSupS = spike and br[2] and bl[1] and br
+
+if showZones and CONF and inWin
+    if magB or magSupB
+        mkZone(true, true)
+    else if engB and (isMom or body > aBody * 1.3)
+        mkZone(true, false)
+    if magS or magSupS
+        mkZone(false, true)
+    else if engS and (isMom or body > aBody * 1.3)
+        mkZone(false, false)
+
+inDemand = false
+inSupply = false
+if array.size(zBoxes) > 0 and CONF
+    for i = array.size(zBoxes) - 1 to 0
+        bx  = array.get(zBoxes, i)
+        top = box.get_top(bx)
+        bot = box.get_bottom(bx)
+        knd = array.get(zKind, i)
+        age = bar_index - box.get_left(bx)
+        if age > 2 and age <= zoneLen
+            if low <= top and high >= bot
+                t = array.get(zTests, i) + 1
+                array.set(zTests, i, t)
+                box.set_text(bx, (knd == 1 ? "TALEP" : "ARZ") + " • TEST " + str.tostring(t))
+                broke = knd == 1 ? close < bot - atr * 0.2 : close > top + atr * 0.2
+                if broke or t > 3
+                    box.set_right(bx, bar_index)
+                    box.set_bgcolor(bx, color.new(color.gray, 94))
+                    box.set_border_color(bx, color.new(color.gray, 70))
+                    array.remove(zBoxes, i)
+                    array.remove(zTests, i)
+                    array.remove(zKind, i)
+                    continue
+            if close <= top + atr * 0.3 and close >= bot - atr * 0.3
+                if knd == 1
+                    inDemand := true
+                else
+                    inSupply := true
+
+// ╔═══ PUANLAMA — kitabın teyit listesi ══════════════════════════╗
+score(dir, bonus) =>
+    s = 1 + bonus
+    s += (dir == 1 and trDir == 1) or (dir == -1 and trDir == -1) ? 1 : 0
+    s += isMom or isMom[1] ? 1 : 0
+    s += (dir == 1 and inDemand) or (dir == -1 and inSupply) ? 1 : 0
+    s += useHTF and ((dir == 1 and htfDir == 1) or (dir == -1 and htfDir == -1)) ? 1 : 0
+    s += (dir == 1 and istekliUp) or (dir == -1 and istekliDn) ? 1 : 0
+    math.min(s, 5)
+
+stars(n) => n >= 5 ? "★★★★★" : n == 4 ? "★★★★" : n == 3 ? "★★★" : n == 2 ? "★★" : "★"
+tOk(d) => not trendFlt or trDir == 0 or (d == 1 and trDir == 1) or (d == -1 and trDir == -1)
+
+// ╔═══ SİNYAL SEÇİMİ — kitap öncelik sırası ══════════════════════╗
+// Güçlü formasyonlara +1 bonus (kitapta özel vurgulananlar)
+txtB = showTst  and tstB  ? "TESTERE"      :
+     showD4   and d4B   ? "DÖRTLÜ ÇİFT ENG" :
+     showMag  and magB  ? "SİHİRLİ ENG"   :
+     showPE   and peB   ? "PİN+ENGULF"    :
+     showSim  and simB  ? "ENG SİMETRİ"   :
+     showD3   and d3B   ? "ÜÇLÜ ÇİFT ENG" :
+     showTD   and tdB   ? "TREND DEVAM"   :
+     showNal  and nalB  ? (nalBonusB ? "AT NALI ✦" : "AT NALI") :
+     showFake and fakeB ? "FAKE PIN"      :
+     showCPin and cpinB ? "ÇOKLU PIN"     :
+     showPin  and pinB  ? "PINBAR"        :
+     showYY   and yyB   ? "YING YANG"     :
+     showBD   and bdB   ? "BOŞALT-DOLDUR" : ""
+
+txtS = showTst  and tstS  ? "TESTERE"      :
+     showD4   and d4S   ? "DÖRTLÜ ÇİFT ENG" :
+     showMag  and magS  ? "SİHİRLİ ENG"   :
+     showPE   and peS   ? "PİN+ENGULF"    :
+     showSim  and simS  ? "ENG SİMETRİ"   :
+     showD3   and d3S   ? "ÜÇLÜ ÇİFT ENG" :
+     showTD   and tdS   ? "TREND DEVAM"   :
+     showNal  and nalS  ? (nalBonusS ? "AT NALI ✦" : "AT NALI") :
+     showFake and fakeS ? "FAKE PIN"      :
+     showCPin and cpinS ? "ÇOKLU PIN"     :
+     showPin  and pinS  ? "PINBAR"        :
+     showYY   and yyS   ? "YING YANG"     :
+     showBD   and bdS   ? "BOŞALT-DOLDUR" : ""
+
+bonusB = tstB or d4B or magB or peB or cpinB or nalBonusB ? 1 : 0
+bonusS = tstS or d4S or magS or peS or cpinS or nalBonusS ? 1 : 0
+scB = txtB != "" ? score(1, bonusB) : 0
+scS = txtS != "" ? score(-1, bonusS) : 0
+
+fireB = CONF and inWin and txtB != "" and scB >= minScore and tOk(1) and not isTrap
+fireS = CONF and inWin and txtS != "" and scS >= minScore and tOk(-1) and not isTrap
+if cleanMode and fireB and fireS
+    if scB >= scS
+        fireS := false
+    else
+        fireB := false
+
+// SL/TP — kitap: SL bölgeye göre, TP en az 2-2.5 kat, SL karda 2/3 kapat
+slB = math.min(low, low[1]) - atr * 0.25
+tpB = close + (close - slB) * 2.5
+slS = math.max(high, high[1]) + atr * 0.25
+tpS = close - (slS - close) * 2.5
+
+if fireB
+    label.new(bar_index, low - atr * 0.6,
+         "▲ " + txtB + "  " + stars(scB) +
+     "\nGiriş " + str.tostring(close, format.mintick) +
+     "\nSL " + str.tostring(slB, format.mintick) +
+     "\nTP " + str.tostring(tpB, format.mintick),
+         style = label.style_label_up, color = color.new(#00C853, 5),
+         textcolor = color.white, size = size.small)
+if fireS
+    label.new(bar_index, high + atr * 0.6,
+         "▼ " + txtS + "  " + stars(scS) +
+     "\nGiriş " + str.tostring(close, format.mintick) +
+     "\nSL " + str.tostring(slS, format.mintick) +
+     "\nTP " + str.tostring(tpS, format.mintick),
+         style = label.style_label_down, color = color.new(#D50000, 5),
+         textcolor = color.white, size = size.small)
+
+plotshape(fireB, "AL", shape.triangleup, location.belowbar, color.new(#00C853, 0), size = size.tiny)
+plotshape(fireS, "SAT", shape.triangledown, location.abovebar, color.new(#D50000, 0), size = size.tiny)
+
+// ╔═══ BİLGİ İŞARETLERİ ══════════════════════════════════════════╗
+plotchar(showInfo and inWin and istekliUp, "İstekli Mum AL", "▸", location.belowbar, color.new(#00E5FF, 20), size = size.tiny)
+plotchar(showInfo and inWin and istekliDn, "İstekli Mum SAT", "▸", location.abovebar, color.new(#FF9100, 20), size = size.tiny)
+plotchar(showInfo and inWin and marubozu, "Marubozu", "◆", location.belowbar, color.new(#FFD600, 30), size = size.tiny)
+plotchar(showInfo and inWin and ignesizBas, "İğnesiz Baş", "■", location.abovebar, color.new(#FF5252, 30), size = size.tiny)
+plotchar(showInfo and inWin and karsitMom, "Karşıt Momentum", "⚖", location.abovebar, color.new(#E040FB, 20), size = size.tiny)
+plotchar(showInfo and inWin and (momKaybiUp or momKaybiDn), "Momentum Kaybı", "!", location.abovebar, color.new(#FFAB40, 20), size = size.tiny)
+plotchar(inWin and isTrap and not isTrap[1], "TUZAK", "⚠", location.abovebar, color.new(#FF1744, 0), size = size.small)
+plotchar(qmS, "QM Satış Bölgesi", "Q", location.abovebar, color.new(#B388FF, 10), size = size.small)
+plotchar(qmB, "QM Alış Bölgesi", "Q", location.belowbar, color.new(#B388FF, 10), size = size.small)
+
+// ╔═══ KONTROL PANELİ ════════════════════════════════════════════╗
+var table pnl = table.new(position.top_right, 2, 8,
+     frame_color = color.new(#FFD600, 0), frame_width = 1,
+     border_color = color.new(color.gray, 70), border_width = 1)
+if barstate.islast and showPanel
+    bgH = color.new(color.black, 15)
+    bgC = color.new(color.black, 45)
+    tT = trDir == 1 ? "▲ YÜKSELİŞ" : trDir == -1 ? "▼ DÜŞÜŞ" : "─ YATAY"
+    tC = trDir == 1 ? color.lime : trDir == -1 ? #FF5252 : color.gray
+    hT = htfDir == 1 ? "▲ YUKARI" : htfDir == -1 ? "▼ AŞAĞI" : "─"
+    hC = htfDir == 1 ? color.lime : htfDir == -1 ? #FF5252 : color.gray
+    zT = inDemand ? "TALEP içinde" : inSupply ? "ARZ içinde" : "bölge dışı"
+    zC = inDemand ? color.lime : inSupply ? #FF5252 : color.gray
+    sT = txtB != "" ? "▲ " + txtB : txtS != "" ? "▼ " + txtS : "—"
+    sC = txtB != "" ? color.lime : txtS != "" ? #FF5252 : color.gray
+    table.cell(pnl, 0, 0, "PIE ULTIMATE", text_color = #FFD600, bgcolor = bgH, text_size = size.small)
+    table.cell(pnl, 1, 0, "3 PDF birleşik", text_color = #FFD600, bgcolor = bgH, text_size = size.tiny)
+    table.cell(pnl, 0, 1, "Trend", text_color = color.silver, bgcolor = bgC, text_size = size.tiny)
+    table.cell(pnl, 1, 1, tT, text_color = tC, bgcolor = bgC, text_size = size.tiny)
+    table.cell(pnl, 0, 2, "Üst TF", text_color = color.silver, bgcolor = bgC, text_size = size.tiny)
+    table.cell(pnl, 1, 2, hT, text_color = hC, bgcolor = bgC, text_size = size.tiny)
+    table.cell(pnl, 0, 3, "Momentum", text_color = color.silver, bgcolor = bgC, text_size = size.tiny)
+    table.cell(pnl, 1, 3, isMom ? "✔ GÜÇLÜ" : "○ zayıf", text_color = isMom ? color.lime : color.gray, bgcolor = bgC, text_size = size.tiny)
+    table.cell(pnl, 0, 4, "Supdem", text_color = color.silver, bgcolor = bgC, text_size = size.tiny)
+    table.cell(pnl, 1, 4, zT, text_color = zC, bgcolor = bgC, text_size = size.tiny)
+    table.cell(pnl, 0, 5, "Tuzak", text_color = color.silver, bgcolor = bgC, text_size = size.tiny)
+    table.cell(pnl, 1, 5, isTrap ? "⚠ TUZAK VAR!" : "✔ temiz", text_color = isTrap ? #FF1744 : color.lime, bgcolor = bgC, text_size = size.tiny)
+    table.cell(pnl, 0, 6, "Son Durum", text_color = color.silver, bgcolor = bgC, text_size = size.tiny)
+    table.cell(pnl, 1, 6, sT, text_color = sC, bgcolor = bgC, text_size = size.tiny)
+    table.cell(pnl, 0, 7, "Tarama", text_color = color.silver, bgcolor = bgC, text_size = size.tiny)
+    table.cell(pnl, 1, 7, "son " + str.tostring(lookN) + " mum • min " + str.tostring(minScore) + "★", text_color = color.white, bgcolor = bgC, text_size = size.tiny)
+
+// ╔═══ ALARMLAR ══════════════════════════════════════════════════╗
+alertcondition(fireB, "PIE ULT — ALIŞ", "PIE: ALIŞ sinyali! Teyitleri ve R/R'ı kontrol et.")
+alertcondition(fireS, "PIE ULT — SATIŞ", "PIE: SATIŞ sinyali! Teyitleri ve R/R'ı kontrol et.")
+alertcondition(fireB or fireS, "PIE ULT — Sinyal", "PIE: Yeni sinyal!")
+alertcondition(tstB or tstS, "PIE ULT — TESTERE", "PIE: TESTERE test aşaması sinyali!")
+alertcondition(isTrap and not isTrap[1], "PIE ULT — TUZAK", "PIE: Tuzak bölgesi! İşlemden uzak dur.")
