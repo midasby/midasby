@@ -1,50 +1,52 @@
 //@version=5
 // ═══════════════════════════════════════════════════════════════════════════
-//  HARMONİK FORMASYON BULUCU — C'den sonra D noktasını ÖNCEDEN çizer
+//  HARMONİK FORMASYON BULUCU v2 — C'den sonra D noktasını ÖNCEDEN çizer
 //
-//  Desteklenen formasyonlar (Fibonacci oranlarıyla):
-//   ■ GARTLEY   : B=0.618 XA → D=0.786 XA
-//   ■ BAT       : B=0.382-0.50 XA → D=0.886 XA
-//   ■ BUTTERFLY : B=0.786 XA → D=1.272 XA
-//   ■ CRAB      : B=0.382-0.618 XA → D=1.618 XA
-//   ■ CYPHER    : C=1.13-1.414 XA → D=0.786 XC
-//   ■ AB=CD     : klasik ABCD (X'siz)
+//  8 FORMASYON (gerçek oran ARALIKLARI + ideale-yakınlık puanlaması):
+//   ■ GARTLEY    B: 0.55-0.68  (ideal 0.618) → D = 0.786·XA
+//   ■ BAT        B: 0.36-0.52  (ideal 0.446) → D = 0.886·XA
+//   ■ BUTTERFLY  B: 0.72-0.86  (ideal 0.786) → D = 1.272·XA
+//   ■ CRAB       B: 0.36-0.65  (ideal 0.50)  → D = 1.618·XA
+//   ■ DEEP CRAB  B: 0.84-0.92  (ideal 0.886) → D = 1.618·XA
+//   ■ CYPHER     C: 1.13-1.414·XA            → D = 0.786·XC
+//   ■ SHARK      C: 1.414-1.618·XA           → D = 0.886·XC
+//   ■ AB=CD      klasik (X'siz)              → D = C - AB
 //
-//  NASIL ÇALIŞIR:
-//  X-A-B-C pivotları kesinleşince oranlar kontrol edilir. Uyum varsa:
-//   → X-A-B-C zigzag çizgileri çizilir
-//   → C'den D'ye KESİKLİ projeksiyon çizgisi
-//   → D bölgesine PRZ kutusu (Potansiyel Dönüş Bölgesi)
-//   → Etikette: formasyon adı + D fiyatı + SL + TP1 + TP2
-//   → Fiyat PRZ'ye DEĞDİĞİNDE 🎯 giriş işareti + alarm
-//   → Fiyat PRZ'yi çok aşarsa formasyon iptal (gri kutu)
+//  Aynı anda birden çok aralığa uyarsa İDEALE EN YAKIN formasyon seçilir.
+//  Sağ altta sayaç tablosu: hangi formasyon kaç kez bulundu görürsün.
 // ═══════════════════════════════════════════════════════════════════════════
-indicator("Harmonik Formasyon Bulucu — D Projeksiyon", "HARMONIK", overlay = true,
-     max_lines_count = 200, max_labels_count = 300, max_boxes_count = 50)
+indicator("Harmonik Formasyon Bulucu v2 — D Projeksiyon", "HARMONIK v2", overlay = true,
+     max_lines_count = 250, max_labels_count = 350, max_boxes_count = 60)
 
 // ╔═══ AYARLAR ═══════════════════════════════════════════════════╗
 G0 = "① Tarama"
-lookN  = input.int(500, "Son kaç mum taransın?", minval = 50, maxval = 5000, group = G0)
-pivLen = input.int(5, "Pivot hassasiyeti (bar)", minval = 2, maxval = 20, group = G0,
-     tooltip = "Küçük = daha çok/küçük formasyon. Büyük = daha az/büyük formasyon. 4H için 5-7 idealdir")
-tol    = input.float(0.08, "Oran toleransı", minval = 0.02, maxval = 0.20, step = 0.01, group = G0,
-     tooltip = "0.08 = Fibonacci oranlarından %8 sapmaya izin ver")
-maxPat = input.int(6, "Grafikte max formasyon", minval = 1, maxval = 15, group = G0)
+lookN   = input.int(500, "Son kaç mum taransın?", minval = 50, maxval = 5000, group = G0)
+pivLen  = input.int(5, "Pivot hassasiyeti", minval = 2, maxval = 20, group = G0,
+     tooltip = "Küçük = çok/küçük formasyon, büyük = az/büyük. 1H-4H için 5-8 idealdir")
+tol     = input.float(0.06, "Aralık toleransı", minval = 0.0, maxval = 0.15, step = 0.01, group = G0,
+     tooltip = "Oran aralıklarının kenarlarına eklenen ekstra pay")
+minMult = input.float(1.5, "Min. formasyon boyu (ATR çarpanı)", minval = 0.0, step = 0.5, group = G0,
+     tooltip = "XA bacağı bu kadar ATR'den küçükse formasyon çizilmez — grafik temiz kalır")
+maxPat  = input.int(8, "Grafikte max formasyon", minval = 1, maxval = 20, group = G0)
 
 G1 = "② Formasyonlar"
 useGart = input.bool(true, "Gartley", group = G1)
 useBat  = input.bool(true, "Bat", group = G1)
 useBfly = input.bool(true, "Butterfly", group = G1)
 useCrab = input.bool(true, "Crab", group = G1)
+useDCrb = input.bool(true, "Deep Crab", group = G1)
 useCyph = input.bool(true, "Cypher", group = G1)
-useABCD = input.bool(true, "AB=CD (X'siz klasik)", group = G1)
+useShrk = input.bool(true, "Shark", group = G1)
+useABCD = input.bool(true, "AB=CD (X'siz)", group = G1)
 
 G2 = "③ Görünüm"
-showLetters = input.bool(true, "X A B C D harflerini göster", group = G2)
-showTargets = input.bool(true, "Etikette SL/TP göster", group = G2)
-bullCol = input.color(#00C853, "Boğa rengi", group = G2)
-bearCol = input.color(#FF1744, "Ayı rengi", group = G2)
-przCol  = input.color(#AA00FF, "PRZ kutu rengi", group = G2)
+showLet   = input.bool(true, "Harfler + oran değerleri", group = G2)
+showDiag  = input.bool(true, "Çapraz kılavuz çizgileri (X-B, A-C)", group = G2)
+showTgt   = input.bool(true, "SL / TP1 / TP2 göster", group = G2)
+showStats = input.bool(true, "Formasyon sayaçları (sağ alt)", group = G2)
+bullCol   = input.color(#26A69A, "Boğa rengi", group = G2)
+bearCol   = input.color(#EF5350, "Ayı rengi", group = G2)
+przCol    = input.color(#7C4DFF, "PRZ / projeksiyon rengi", group = G2)
 
 // ╔═══ TEMEL ═════════════════════════════════════════════════════╗
 atr   = ta.atr(14)
@@ -53,7 +55,7 @@ inWin = last_bar_index - bar_index <= lookN
 
 // ╔═══ FORMASYON NESNESİ ═════════════════════════════════════════╗
 type Harm
-    int dir            // 1 = boğa (D'de ALIŞ), -1 = ayı (D'de SATIŞ)
+    int dir
     float przTop
     float przBot
     bool active
@@ -61,6 +63,8 @@ type Harm
     line l2
     line l3
     line l4
+    line g1
+    line g2
     box bx
     label lb
     label hx
@@ -75,6 +79,8 @@ delHarm(Harm h) =>
     line.delete(h.l2)
     line.delete(h.l3)
     line.delete(h.l4)
+    line.delete(h.g1)
+    line.delete(h.g2)
     box.delete(h.bx)
     label.delete(h.lb)
     label.delete(h.hx)
@@ -83,14 +89,13 @@ delHarm(Harm h) =>
     label.delete(h.hc)
 
 // ╔═══ PİVOT ZİGZAG ══════════════════════════════════════════════╗
-var pP = array.new_float()   // pivot fiyatları
-var pB = array.new_int()     // pivot barları
-var pH = array.new_bool()    // true = tepe pivotu
+var pP = array.new_float()
+var pB = array.new_int()
+var pH = array.new_bool()
 
 addPivot(price, bar, isH) =>
     n = array.size(pP)
     if n > 0 and array.get(pH, n - 1) == isH
-        // Aynı yönde ikinci pivot: daha uç olanı tut
         lastP = array.get(pP, n - 1)
         if (isH and price > lastP) or (not isH and price < lastP)
             array.set(pP, n - 1, price)
@@ -117,141 +122,174 @@ if not na(ph)
 if not na(pl)
     changed := addPivot(pl, bar_index - pivLen, false) or changed
 
-// ╔═══ ORAN YARDIMCILARI ═════════════════════════════════════════╗
-inRng(v, lo, hi) => v >= lo * (1 - tol) and v <= hi * (1 + tol)
+// ╔═══ YARDIMCILAR ═══════════════════════════════════════════════╗
+inR(v, lo, hi) => v >= lo - tol and v <= hi + tol
+fmtR(v) => str.tostring(v, "#.###")
+
+// ╔═══ SAYAÇLAR ══════════════════════════════════════════════════╗
+var int cGa = 0, var int cBa = 0, var int cBf = 0, var int cCr = 0
+var int cDc = 0, var int cCy = 0, var int cSh = 0, var int cAb = 0
 
 // ╔═══ FORMASYON TESPİTİ ═════════════════════════════════════════╗
 var int lastCbar = -1
 
 if changed and CONF and inWin and array.size(pP) >= 3
-    n  = array.size(pP)
-    cp = array.get(pP, n - 1)
-    cb = array.get(pB, n - 1)
-    ch = array.get(pH, n - 1)
-    bp = array.get(pP, n - 2)
-    bb = array.get(pB, n - 2)
-    ap = array.get(pP, n - 3)
-    ab_ = array.get(pB, n - 3)
+    n   = array.size(pP)
+    cp  = array.get(pP, n - 1)
+    cb  = array.get(pB, n - 1)
+    ch  = array.get(pH, n - 1)
+    bp  = array.get(pP, n - 2)
+    bb  = array.get(pB, n - 2)
+    ap  = array.get(pP, n - 3)
+    abr = array.get(pB, n - 3)
     hasX = n >= 4
-    xp = hasX ? array.get(pP, n - 4) : na
-    xb = hasX ? array.get(pB, n - 4) : na
+    xp  = hasX ? array.get(pP, n - 4) : na
+    xb  = hasX ? array.get(pB, n - 4) : na
 
     if cb != lastCbar
-        name = ""
-        d1 = float(na)
-        d2 = float(na)
-        dir = 0
+        name  = ""
+        dTxt  = ""
+        d1    = float(na)
+        d2    = float(na)
+        dir   = 0
+        score = 1e9
+        retB  = float(na)
+        retC  = float(na)
+        xcR   = float(na)
 
-        // ── BOĞA: X dip, A tepe, B dip, C tepe → D dip (ALIŞ) ──
-        if ch and bp < ap and cp > bp
-            XA = hasX ? ap - xp : na
-            AB = ap - bp
-            BC = cp - bp
-            if hasX and XA > 0 and AB > 0 and BC > 0
-                retB = AB / XA
-                retC = BC / AB
-                xcR  = (cp - xp) / XA
-                if useCyph and inRng(xcR, 1.13, 1.414) and inRng(retB, 0.382, 0.618)
-                    name := "CYPHER"
-                    d1 := cp - 0.786 * (cp - xp)
-                    d2 := d1
-                else if useGart and inRng(retB, 0.618, 0.618) and inRng(retC, 0.382, 0.886)
-                    name := "GARTLEY"
-                    d1 := ap - 0.786 * XA
-                    d2 := cp - 1.272 * BC
-                else if useBat and inRng(retB, 0.382, 0.50) and inRng(retC, 0.382, 0.886)
-                    name := "BAT"
-                    d1 := ap - 0.886 * XA
-                    d2 := cp - 2.0 * BC
-                else if useBfly and inRng(retB, 0.786, 0.786) and inRng(retC, 0.382, 0.886)
-                    name := "BUTTERFLY"
-                    d1 := ap - 1.272 * XA
-                    d2 := cp - 1.618 * BC
-                else if useCrab and inRng(retB, 0.382, 0.618) and inRng(retC, 0.382, 0.886)
-                    name := "CRAB"
-                    d1 := ap - 1.618 * XA
-                    d2 := cp - 2.618 * BC
-            if name == "" and useABCD and AB > 0 and BC > 0 and inRng(BC / AB, 0.382, 0.886)
+        sgn = ch ? 1.0 : -1.0            // boğa için +1 (D aşağıda), ayı için -1
+        XA  = hasX ? sgn * (ap - xp) : na
+        AB  = sgn * (ap - bp)
+        BC  = sgn * (cp - bp)
+        okLegs = AB > 0 and BC > 0
+        bigEnough = (hasX and XA > atr * minMult) or (not hasX and AB > atr * minMult)
+
+        if okLegs and bigEnough
+            if hasX and XA > 0
+                retB := AB / XA
+                retC := BC / AB
+                xcR  := sgn * (cp - xp) / XA
+
+                // ── XA-bazlı formasyonlar: ideale yakınlık puanı ──
+                if useGart and inR(retB, 0.55, 0.68) and inR(retC, 0.382, 0.886)
+                    s = math.abs(retB - 0.618)
+                    if s < score
+                        score := s
+                        name := "GARTLEY"
+                        dTxt := "D = 0.786·XA"
+                        d1 := ap - sgn * 0.786 * XA
+                        d2 := cp - sgn * 1.272 * BC
+                if useBat and inR(retB, 0.36, 0.52) and inR(retC, 0.382, 0.886)
+                    s = math.abs(retB - 0.446)
+                    if s < score
+                        score := s
+                        name := "BAT"
+                        dTxt := "D = 0.886·XA"
+                        d1 := ap - sgn * 0.886 * XA
+                        d2 := cp - sgn * 2.0 * BC
+                if useBfly and inR(retB, 0.72, 0.86) and inR(retC, 0.382, 0.886)
+                    s = math.abs(retB - 0.786)
+                    if s < score
+                        score := s
+                        name := "BUTTERFLY"
+                        dTxt := "D = 1.272·XA"
+                        d1 := ap - sgn * 1.272 * XA
+                        d2 := cp - sgn * 1.618 * BC
+                if useCrab and inR(retB, 0.36, 0.65) and inR(retC, 0.382, 0.886)
+                    s = math.abs(retB - 0.50) + 0.05   // Bat ile çakışırsa Bat öncelikli
+                    if s < score
+                        score := s
+                        name := "CRAB"
+                        dTxt := "D = 1.618·XA"
+                        d1 := ap - sgn * 1.618 * XA
+                        d2 := cp - sgn * 2.618 * BC
+                if useDCrb and inR(retB, 0.84, 0.92) and inR(retC, 0.382, 0.886)
+                    s = math.abs(retB - 0.886)
+                    if s < score
+                        score := s
+                        name := "DEEP CRAB"
+                        dTxt := "D = 1.618·XA"
+                        d1 := ap - sgn * 1.618 * XA
+                        d2 := cp - sgn * 2.24 * BC
+                // ── XC-bazlı formasyonlar (C, A'yı aşar) ──
+                if useCyph and inR(xcR, 1.13, 1.414) and inR(retB, 0.382, 0.618)
+                    s = math.abs(xcR - 1.272)
+                    if s < score
+                        score := s
+                        name := "CYPHER"
+                        dTxt := "D = 0.786·XC"
+                        d1 := cp - sgn * 0.786 * sgn * (cp - xp)
+                        d2 := d1
+                if useShrk and inR(xcR, 1.414, 1.618) and inR(retB, 0.382, 0.786)
+                    s = math.abs(xcR - 1.53)
+                    if s < score
+                        score := s
+                        name := "SHARK"
+                        dTxt := "D = 0.886·XC"
+                        d1 := cp - sgn * 0.886 * sgn * (cp - xp)
+                        d2 := d1
+
+            // ── AB=CD (X'siz, hiçbir XABCD uymadıysa) ──
+            if name == "" and useABCD and inR(BC / AB, 0.50, 0.886)
                 name := "AB=CD"
-                d1 := cp - AB
-                d2 := cp - 1.272 * AB
+                dTxt := "CD = AB"
+                d1 := cp - sgn * AB
+                d2 := cp - sgn * 1.272 * AB
+
             if name != "" and math.min(d1, d2) > 0
-                dir := 1
-
-        // ── AYI: X tepe, A dip, B tepe, C dip → D tepe (SATIŞ) ──
-        if not ch and bp > ap and cp < bp
-            XA = hasX ? xp - ap : na
-            AB = bp - ap
-            BC = bp - cp
-            if hasX and XA > 0 and AB > 0 and BC > 0
-                retB = AB / XA
-                retC = BC / AB
-                xcR  = (xp - cp) / XA
-                if useCyph and inRng(xcR, 1.13, 1.414) and inRng(retB, 0.382, 0.618)
-                    name := "CYPHER"
-                    d1 := cp + 0.786 * (xp - cp)
-                    d2 := d1
-                else if useGart and inRng(retB, 0.618, 0.618) and inRng(retC, 0.382, 0.886)
-                    name := "GARTLEY"
-                    d1 := ap + 0.786 * XA
-                    d2 := cp + 1.272 * BC
-                else if useBat and inRng(retB, 0.382, 0.50) and inRng(retC, 0.382, 0.886)
-                    name := "BAT"
-                    d1 := ap + 0.886 * XA
-                    d2 := cp + 2.0 * BC
-                else if useBfly and inRng(retB, 0.786, 0.786) and inRng(retC, 0.382, 0.886)
-                    name := "BUTTERFLY"
-                    d1 := ap + 1.272 * XA
-                    d2 := cp + 1.618 * BC
-                else if useCrab and inRng(retB, 0.382, 0.618) and inRng(retC, 0.382, 0.886)
-                    name := "CRAB"
-                    d1 := ap + 1.618 * XA
-                    d2 := cp + 2.618 * BC
-            if name == "" and useABCD and AB > 0 and BC > 0 and inRng(BC / AB, 0.382, 0.886)
-                name := "AB=CD"
-                d1 := cp + AB
-                d2 := cp + 1.272 * AB
-            if name != ""
-                dir := -1
+                dir := ch ? 1 : -1
 
         // ── ÇİZİM ──────────────────────────────────────────────
         if dir != 0
             lastCbar := cb
-            mainCol  = dir == 1 ? bullCol : bearCol
+            mainCol = dir == 1 ? bullCol : bearCol
             przT = math.max(d1, d2)
             przB = math.min(d1, d2)
-            // PRZ çok inceyse ATR kadar genişlet
-            if przT - przB < atr * 0.3
-                przT := przT + atr * 0.15
-                przB := przB - atr * 0.15
-            estBars = math.max(8, cb - bb)
+            if przT - przB < atr * 0.4
+                mid = (przT + przB) / 2
+                przT := mid + atr * 0.2
+                przB := mid - atr * 0.2
+            estBars = math.max(10, cb - bb)
             dBar = cb + estBars
             dMid = (przT + przB) / 2
+            dashCol = color.new(przCol, 15)
 
-            ln1 = hasX ? line.new(xb, xp, ab_, ap, color = mainCol, width = 2) : line.new(ab_, ap, ab_, ap, color = mainCol)
-            ln2 = line.new(ab_, ap, bb, bp, color = mainCol, width = 2)
+            ln1 = hasX ? line.new(xb, xp, abr, ap, color = mainCol, width = 2) : line.new(abr, ap, abr, ap, color = mainCol)
+            ln2 = line.new(abr, ap, bb, bp, color = mainCol, width = 2)
             ln3 = line.new(bb, bp, cb, cp, color = mainCol, width = 2)
-            ln4 = line.new(cb, cp, dBar, dMid, color = przCol, width = 2, style = line.style_dashed)
-            bx1 = box.new(cb + 1, przT, dBar + 12, przB, border_color = przCol, border_width = 2, bgcolor = color.new(przCol, 85), text = "PRZ — D BÖLGESİ", text_color = przCol, text_size = size.tiny)
+            ln4 = line.new(cb, cp, dBar, dMid, color = dashCol, width = 2, style = line.style_dashed)
+            gd1 = showDiag and hasX ? line.new(xb, xp, bb, bp, color = color.new(color.gray, 55), width = 1, style = line.style_dotted) : line.new(bb, bp, bb, bp, color = color.new(color.gray, 100))
+            gd2 = showDiag ? line.new(abr, ap, cb, cp, color = color.new(color.gray, 55), width = 1, style = line.style_dotted) : line.new(cb, cp, cb, cp, color = color.new(color.gray, 100))
+
+            bx1 = box.new(cb + 1, przT, dBar + 14, przB, border_color = przCol, border_width = 1, border_style = line.style_dashed, bgcolor = color.new(przCol, 82), text = "PRZ  " + dTxt, text_color = color.new(przCol, 0), text_size = size.tiny, text_halign = text.align_right, text_valign = text.align_top)
 
             slP  = dir == 1 ? przB - atr * 0.8 : przT + atr * 0.8
             tp1P = dir == 1 ? dMid + 0.382 * (ap - dMid) : dMid - 0.382 * (dMid - ap)
             tp2P = dir == 1 ? dMid + 0.618 * (ap - dMid) : dMid - 0.618 * (dMid - ap)
-            tgt  = showTargets ? "\nSL  " + str.tostring(slP, format.mintick) + "\nTP1 " + str.tostring(tp1P, format.mintick) + "\nTP2 " + str.tostring(tp2P, format.mintick) : ""
-            lbTxt = name + (dir == 1 ? "  ▲ ALIŞ" : "  ▼ SATIŞ") + "\nD: " + str.tostring(dMid, format.mintick) + tgt
-            lb1 = label.new(dBar, dMid, lbTxt, style = dir == 1 ? label.style_label_up : label.style_label_down, color = color.new(mainCol, 10), textcolor = color.white, size = size.small)
+            tgt  = showTgt ? "\n─────────\nSL   " + str.tostring(slP, format.mintick) + "\nTP1  " + str.tostring(tp1P, format.mintick) + "\nTP2  " + str.tostring(tp2P, format.mintick) : ""
+            lb1 = label.new(dBar + 14, dMid, name + (dir == 1 ? "  ▲ ALIŞ" : "  ▼ SATIŞ") + "\nD ≈ " + str.tostring(dMid, format.mintick) + tgt, style = label.style_label_left, color = color.new(mainCol, 12), textcolor = color.white, size = size.small)
 
-            lxL = showLetters and hasX ? label.new(xb, xp, "X", style = ch ? label.style_label_up : label.style_label_down, color = color.new(mainCol, 30), textcolor = color.white, size = size.tiny) : label.new(ab_, ap, "", color = color.new(color.white, 100))
-            laL = showLetters ? label.new(ab_, ap, "A", style = ch ? label.style_label_down : label.style_label_up, color = color.new(mainCol, 30), textcolor = color.white, size = size.tiny) : label.new(ab_, ap, "", color = color.new(color.white, 100))
-            lbL = showLetters ? label.new(bb, bp, "B", style = ch ? label.style_label_up : label.style_label_down, color = color.new(mainCol, 30), textcolor = color.white, size = size.tiny) : label.new(bb, bp, "", color = color.new(color.white, 100))
-            lcL = showLetters ? label.new(cb, cp, "C", style = ch ? label.style_label_down : label.style_label_up, color = color.new(mainCol, 30), textcolor = color.white, size = size.tiny) : label.new(cb, cp, "", color = color.new(color.white, 100))
+            yOffX = ch ? -atr * 0.5 : atr * 0.5
+            lxL = showLet and hasX ? label.new(xb, xp + yOffX, "X", style = label.style_none, textcolor = mainCol, size = size.normal) : label(na)
+            laL = showLet ? label.new(abr, ap - yOffX, "A", style = label.style_none, textcolor = mainCol, size = size.normal) : label(na)
+            lbL = showLet ? label.new(bb, bp + yOffX, "B " + (hasX ? fmtR(retB) : ""), style = label.style_none, textcolor = mainCol, size = size.normal) : label(na)
+            lcL = showLet ? label.new(cb, cp - yOffX, "C " + (hasX and not na(retC) ? fmtR(retC) : ""), style = label.style_none, textcolor = mainCol, size = size.normal) : label(na)
 
-            array.push(harms, Harm.new(dir, przT, przB, true, ln1, ln2, ln3, ln4, bx1, lb1, lxL, laL, lbL, lcL))
+            array.push(harms, Harm.new(dir, przT, przB, true, ln1, ln2, ln3, ln4, gd1, gd2, bx1, lb1, lxL, laL, lbL, lcL))
             if array.size(harms) > maxPat
                 old = array.shift(harms)
                 delHarm(old)
 
-// ╔═══ PRZ TEMAS & İPTAL KONTROLÜ ════════════════════════════════╗
+            cGa += name == "GARTLEY" ? 1 : 0
+            cBa += name == "BAT" ? 1 : 0
+            cBf += name == "BUTTERFLY" ? 1 : 0
+            cCr += name == "CRAB" ? 1 : 0
+            cDc += name == "DEEP CRAB" ? 1 : 0
+            cCy += name == "CYPHER" ? 1 : 0
+            cSh += name == "SHARK" ? 1 : 0
+            cAb += name == "AB=CD" ? 1 : 0
+
+// ╔═══ PRZ TEMAS & İPTAL ═════════════════════════════════════════╗
 przHitBull = false
 przHitBear = false
 if CONF and array.size(harms) > 0
@@ -263,26 +301,32 @@ if CONF and array.size(harms) > 0
                 if low <= h.przTop and high >= h.przBot
                     przHitBull := true
                     h.active := false
-                    box.set_bgcolor(h.bx, color.new(bullCol, 70))
-                    label.new(bar_index, low - atr * 0.5, "🎯 D NOKTASI\n▲ ALIŞ BÖLGESİ", style = label.style_label_up, color = color.new(bullCol, 0), textcolor = color.white, size = size.normal)
+                    box.set_bgcolor(h.bx, color.new(bullCol, 65))
+                    box.set_border_color(h.bx, bullCol)
+                    line.set_x2(h.l4, bar_index)
+                    line.set_y2(h.l4, (h.przTop + h.przBot) / 2)
+                    label.new(bar_index, low - atr * 0.5, "🎯 D — ALIŞ", style = label.style_label_up, color = color.new(bullCol, 0), textcolor = color.white, size = size.normal)
                 else if close < h.przBot - zoneW * 1.5
                     h.active := false
-                    box.set_bgcolor(h.bx, color.new(color.gray, 90))
+                    box.set_bgcolor(h.bx, color.new(color.gray, 92))
                     box.set_border_color(h.bx, color.new(color.gray, 60))
                     box.set_text(h.bx, "İPTAL")
             else
                 if high >= h.przBot and low <= h.przTop
                     przHitBear := true
                     h.active := false
-                    box.set_bgcolor(h.bx, color.new(bearCol, 70))
-                    label.new(bar_index, high + atr * 0.5, "🎯 D NOKTASI\n▼ SATIŞ BÖLGESİ", style = label.style_label_down, color = color.new(bearCol, 0), textcolor = color.white, size = size.normal)
+                    box.set_bgcolor(h.bx, color.new(bearCol, 65))
+                    box.set_border_color(h.bx, bearCol)
+                    line.set_x2(h.l4, bar_index)
+                    line.set_y2(h.l4, (h.przTop + h.przBot) / 2)
+                    label.new(bar_index, high + atr * 0.5, "🎯 D — SATIŞ", style = label.style_label_down, color = color.new(bearCol, 0), textcolor = color.white, size = size.normal)
                 else if close > h.przTop + zoneW * 1.5
                     h.active := false
-                    box.set_bgcolor(h.bx, color.new(color.gray, 90))
+                    box.set_bgcolor(h.bx, color.new(color.gray, 92))
                     box.set_border_color(h.bx, color.new(color.gray, 60))
                     box.set_text(h.bx, "İPTAL")
 
-// ╔═══ BİLGİ PANELİ ══════════════════════════════════════════════╗
+// ╔═══ PANELLER ══════════════════════════════════════════════════╗
 var table pnl = table.new(position.top_right, 2, 3, frame_color = color.new(przCol, 0), frame_width = 1, border_color = color.new(color.gray, 70), border_width = 1)
 if barstate.islast
     activeCnt = 0
@@ -291,14 +335,33 @@ if barstate.islast
             h = array.get(harms, i)
             activeCnt += h.active ? 1 : 0
     bgC = color.new(color.black, 45)
-    table.cell(pnl, 0, 0, "HARMONİK", text_color = przCol, bgcolor = color.new(color.black, 20), text_size = size.small)
+    table.cell(pnl, 0, 0, "HARMONİK v2", text_color = przCol, bgcolor = color.new(color.black, 20), text_size = size.small)
     table.cell(pnl, 1, 0, "D Projeksiyon", text_color = przCol, bgcolor = color.new(color.black, 20), text_size = size.tiny)
     table.cell(pnl, 0, 1, "Bekleyen D", text_color = color.silver, bgcolor = bgC, text_size = size.tiny)
-    table.cell(pnl, 1, 1, str.tostring(activeCnt) + " formasyon", text_color = activeCnt > 0 ? color.yellow : color.gray, bgcolor = bgC, text_size = size.tiny)
-    table.cell(pnl, 0, 2, "Toplam çizili", text_color = color.silver, bgcolor = bgC, text_size = size.tiny)
+    table.cell(pnl, 1, 1, str.tostring(activeCnt), text_color = activeCnt > 0 ? color.yellow : color.gray, bgcolor = bgC, text_size = size.tiny)
+    table.cell(pnl, 0, 2, "Çizili", text_color = color.silver, bgcolor = bgC, text_size = size.tiny)
     table.cell(pnl, 1, 2, str.tostring(array.size(harms)), text_color = color.white, bgcolor = bgC, text_size = size.tiny)
 
+var table stats = table.new(position.bottom_right, 2, 9, frame_color = color.new(color.gray, 40), frame_width = 1, border_color = color.new(color.gray, 75), border_width = 1)
+
+statRow(r, ad, cnt) =>
+    bgS = color.new(color.black, 55)
+    table.cell(stats, 0, r, ad, text_color = color.silver, bgcolor = bgS, text_size = size.tiny, text_halign = text.align_left)
+    table.cell(stats, 1, r, str.tostring(cnt), text_color = cnt > 0 ? color.white : color.new(color.gray, 40), bgcolor = bgS, text_size = size.tiny)
+
+if barstate.islast and showStats
+    table.cell(stats, 0, 0, "BULUNAN", text_color = przCol, bgcolor = color.new(color.black, 25), text_size = size.tiny)
+    table.cell(stats, 1, 0, "adet", text_color = przCol, bgcolor = color.new(color.black, 25), text_size = size.tiny)
+    statRow(1, "Gartley", cGa)
+    statRow(2, "Bat", cBa)
+    statRow(3, "Butterfly", cBf)
+    statRow(4, "Crab", cCr)
+    statRow(5, "Deep Crab", cDc)
+    statRow(6, "Cypher", cCy)
+    statRow(7, "Shark", cSh)
+    statRow(8, "AB=CD", cAb)
+
 // ╔═══ ALARMLAR ══════════════════════════════════════════════════╗
-alertcondition(przHitBull, "HARMONİK — D ALIŞ", "Harmonik: Fiyat D noktasına (PRZ) ulaştı — ALIŞ bölgesi! Tepki mumunu bekle.")
-alertcondition(przHitBear, "HARMONİK — D SATIŞ", "Harmonik: Fiyat D noktasına (PRZ) ulaştı — SATIŞ bölgesi! Tepki mumunu bekle.")
+alertcondition(przHitBull, "HARMONİK — D ALIŞ", "Harmonik: Fiyat D (PRZ) bölgesine ulaştı — ALIŞ! Tepki mumu bekle.")
+alertcondition(przHitBear, "HARMONİK — D SATIŞ", "Harmonik: Fiyat D (PRZ) bölgesine ulaştı — SATIŞ! Tepki mumu bekle.")
 alertcondition(przHitBull or przHitBear, "HARMONİK — D Noktası", "Harmonik: Fiyat D noktasına ulaştı!")
