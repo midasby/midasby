@@ -218,12 +218,13 @@ bobinRange = math.max(high, high[1], high[2], high[3]) - math.min(low, low[1], l
 dirChanges = (bull != bull[1] ? 1 : 0) + (bull[1] != bull[2] ? 1 : 0) + (bull[2] != bull[3] ? 1 : 0)
 isBobin    = bobinRange < atr * 1.6 and dirChanges >= 2 and body < aBody and body[1] < aBody
 if showBobin and isBobin and not isBobin[1] and CONF
-    box.new(bar_index - 3, math.max(high, high[1], high[2], high[3]),
-            bar_index + 12, math.min(low, low[1], low[2], low[3]),
-            border_color = color.new(#FFD600, 30), border_width = 1,
-            bgcolor = color.new(#FFD600, 92),
-            text = "BOBİN", text_color = color.new(#FFD600, 10),
-            text_size = size.tiny, text_halign = text.align_left)
+    bobHi = math.max(high, high[1], high[2], high[3])
+    bobLo = math.min(low, low[1], low[2], low[3])
+    box.new(bar_index - 3, bobHi, bar_index + 12, bobLo,
+         border_color = color.new(#FFD600, 30), border_width = 1,
+         bgcolor = color.new(#FFD600, 92),
+         text = "BOBİN", text_color = color.new(#FFD600, 10),
+         text_size = size.tiny, text_halign = text.align_left)
 
 // ╔═══ DESTEK / DİRENÇ (iğne uçları) ═════════════════════════════╗
 if showSR and not na(ph)
