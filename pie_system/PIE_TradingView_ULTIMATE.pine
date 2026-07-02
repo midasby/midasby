@@ -62,7 +62,9 @@ showBob   = input.bool(true, "Bobin kutuları", group = G3)
 showMom   = input.bool(true, "Momentum mum renklendirme", group = G3)
 showInfo  = input.bool(true, "Bilgi işaretleri (istekli mum, marubozu...)", group = G3)
 showPanel = input.bool(true, "Kontrol paneli", group = G3)
-cleanMode = input.bool(true, "TEMİZ MOD (bar başına tek en iyi sinyal)", group = G3)
+showStats = input.bool(true, "Formasyon sayaçları (sağ alt)", group = G3,
+     tooltip = "Son N mumda her formasyonun kaç kez oluştuğunu gösterir — hangileri nadir görürsün")
+cleanMode = input.bool(true, "TEMİZ MOD (bar başına tek etiket, tüm isimler birlikte)", group = G3)
 
 // ╔═══ TEMEL ═════════════════════════════════════════════════════╗
 body  = math.abs(close - open)
@@ -190,12 +192,12 @@ peS = pinS[2] and engS
 // Ortak kural (s.24 + s.103 + s.111): sinyal yönü = DOLDURAN büyük barın yönü
 prevBodyLo = math.min(open[1], close[1])
 prevBodyHi = math.max(open[1], close[1])
-fillUpA = uW[1] > atr and close > high[1]
-fillUpB = dW[1] > atr and open <= prevBodyLo and close > prevBodyHi
-bdB = bl and body > atr and (fillUpA or fillUpB)
-fillDnA = dW[1] > atr and close < low[1]
-fillDnB = uW[1] > atr and open >= prevBodyHi and close < prevBodyLo
-bdS = br and body > atr and (fillDnA or fillDnB)
+fillUpA = uW[1] > atr * 0.8 and close > high[1]
+fillUpB = dW[1] > atr * 0.8 and open <= prevBodyLo + atr * 0.1 and close > prevBodyHi
+bdB = bl and body > atr * 0.9 and (fillUpA or fillUpB)
+fillDnA = dW[1] > atr * 0.8 and close < low[1]
+fillDnB = uW[1] > atr * 0.8 and open >= prevBodyHi - atr * 0.1 and close < prevBodyLo
+bdS = br and body > atr * 0.9 and (fillDnA or fillDnB)
 
 // ╔═══ TUZAK FİLTRESİ ════════════════════════════════════════════╗
 // Kitap: "Ard arda kesilen engulflar = tuzak. İşleme girilmez!"
@@ -330,35 +332,65 @@ score(dir, bonus) =>
 stars(n) => n >= 5 ? "★★★★★" : n == 4 ? "★★★★" : n == 3 ? "★★★" : n == 2 ? "★★" : "★"
 tOk(d) => not trendFlt or trDir == 0 or (d == 1 and trDir == 1) or (d == -1 and trDir == -1)
 
-// ╔═══ SİNYAL SEÇİMİ — kitap öncelik sırası ══════════════════════╗
-// Güçlü formasyonlara +1 bonus (kitapta özel vurgulananlar)
-txtB = showTst  and tstB  ? "TESTERE"      :
-     showD4   and d4B   ? "DÖRTLÜ ÇİFT ENG" :
-     showMag  and magB  ? "SİHİRLİ ENG"   :
-     showPE   and peB   ? "PİN+ENGULF"    :
-     showSim  and simB  ? "ENG SİMETRİ"   :
-     showD3   and d3B   ? "ÜÇLÜ ÇİFT ENG" :
-     showTD   and tdB   ? "TREND DEVAM"   :
-     showNal  and nalB  ? (nalBonusB ? "AT NALI ✦" : "AT NALI") :
-     showFake and fakeB ? "FAKE PIN"      :
-     showCPin and cpinB ? "ÇOKLU PIN"     :
-     showPin  and pinB  ? "PINBAR"        :
-     showYY   and yyB   ? "YING YANG"     :
-     showBD   and bdB   ? "BOŞALT-DOLDUR" : ""
+// ╔═══ SİNYAL SEÇİMİ — aynı barda oluşan TÜM formasyonlar birlikte yazılır ══╗
+// Böylece hiçbir formasyon bir diğerinin gölgesinde kaybolmaz
+fAdd(cur, name) => cur == "" ? name : cur + "+" + name
 
-txtS = showTst  and tstS  ? "TESTERE"      :
-     showD4   and d4S   ? "DÖRTLÜ ÇİFT ENG" :
-     showMag  and magS  ? "SİHİRLİ ENG"   :
-     showPE   and peS   ? "PİN+ENGULF"    :
-     showSim  and simS  ? "ENG SİMETRİ"   :
-     showD3   and d3S   ? "ÜÇLÜ ÇİFT ENG" :
-     showTD   and tdS   ? "TREND DEVAM"   :
-     showNal  and nalS  ? (nalBonusS ? "AT NALI ✦" : "AT NALI") :
-     showFake and fakeS ? "FAKE PIN"      :
-     showCPin and cpinS ? "ÇOKLU PIN"     :
-     showPin  and pinS  ? "PINBAR"        :
-     showYY   and yyS   ? "YING YANG"     :
-     showBD   and bdS   ? "BOŞALT-DOLDUR" : ""
+txtB = ""
+if showTst and tstB
+    txtB := fAdd(txtB, "TESTERE")
+if showD4 and d4B
+    txtB := fAdd(txtB, "DÖRTLÜ ÇİFT")
+if showMag and magB
+    txtB := fAdd(txtB, "SİHİRLİ ENG")
+if showPE and peB
+    txtB := fAdd(txtB, "PİN+ENGULF")
+if showSim and simB
+    txtB := fAdd(txtB, "ENG SİMETRİ")
+if showD3 and d3B
+    txtB := fAdd(txtB, "ÜÇLÜ ÇİFT")
+if showTD and tdB
+    txtB := fAdd(txtB, "TREND DEVAM")
+if showNal and nalB
+    txtB := fAdd(txtB, nalBonusB ? "AT NALI ✦" : "AT NALI")
+if showFake and fakeB
+    txtB := fAdd(txtB, "FAKE PIN")
+if showCPin and cpinB
+    txtB := fAdd(txtB, "ÇOKLU PIN")
+if showPin and pinB and not cpinB
+    txtB := fAdd(txtB, "PINBAR")
+if showYY and yyB
+    txtB := fAdd(txtB, "YING YANG")
+if showBD and bdB
+    txtB := fAdd(txtB, "BOŞALT-D")
+
+txtS = ""
+if showTst and tstS
+    txtS := fAdd(txtS, "TESTERE")
+if showD4 and d4S
+    txtS := fAdd(txtS, "DÖRTLÜ ÇİFT")
+if showMag and magS
+    txtS := fAdd(txtS, "SİHİRLİ ENG")
+if showPE and peS
+    txtS := fAdd(txtS, "PİN+ENGULF")
+if showSim and simS
+    txtS := fAdd(txtS, "ENG SİMETRİ")
+if showD3 and d3S
+    txtS := fAdd(txtS, "ÜÇLÜ ÇİFT")
+if showTD and tdS
+    txtS := fAdd(txtS, "TREND DEVAM")
+if showNal and nalS
+    txtS := fAdd(txtS, nalBonusS ? "AT NALI ✦" : "AT NALI")
+if showFake and fakeS
+    txtS := fAdd(txtS, "FAKE PIN")
+if showCPin and cpinS
+    txtS := fAdd(txtS, "ÇOKLU PIN")
+if showPin and pinS and not cpinS
+    txtS := fAdd(txtS, "PINBAR")
+if showYY and yyS
+    txtS := fAdd(txtS, "YING YANG")
+if showBD and bdS
+    txtS := fAdd(txtS, "BOŞALT-D")
 
 bonusB = tstB or d4B or magB or peB or cpinB or nalBonusB ? 1 : 0
 bonusS = tstS or d4S or magS or peS or cpinS or nalBonusS ? 1 : 0
@@ -409,6 +441,50 @@ plotchar(showInfo and inWin and (momKaybiUp or momKaybiDn), "Momentum Kaybı", "
 plotchar(inWin and isTrap and not isTrap[1], "TUZAK", "⚠", location.abovebar, color.new(#FF1744, 0), size = size.small)
 plotchar(qmS, "QM Satış Bölgesi", "Q", location.abovebar, color.new(#B388FF, 10), size = size.small)
 plotchar(qmB, "QM Alış Bölgesi", "Q", location.belowbar, color.new(#B388FF, 10), size = size.small)
+
+// ╔═══ FORMASYON SAYAÇLARI — ham oluşum sayısı (skor/trend filtresiz) ═══╗
+var int cTst = 0, var int cD4 = 0, var int cMg = 0, var int cPe = 0
+var int cSm = 0, var int cD3 = 0, var int cTd = 0, var int cNl = 0
+var int cFk = 0, var int cCp = 0, var int cPn = 0, var int cYy = 0
+var int cBd = 0
+if CONF and inWin
+    cTst += tstB or tstS ? 1 : 0
+    cD4  += d4B or d4S ? 1 : 0
+    cMg  += magB or magS ? 1 : 0
+    cPe  += peB or peS ? 1 : 0
+    cSm  += simB or simS ? 1 : 0
+    cD3  += d3B or d3S ? 1 : 0
+    cTd  += tdB or tdS ? 1 : 0
+    cNl  += nalB or nalS ? 1 : 0
+    cFk  += fakeB or fakeS ? 1 : 0
+    cCp  += cpinB or cpinS ? 1 : 0
+    cPn  += pinB or pinS ? 1 : 0
+    cYy  += yyB or yyS ? 1 : 0
+    cBd  += bdB or bdS ? 1 : 0
+
+var table stats = table.new(position.bottom_right, 2, 14,
+     frame_color = color.new(color.gray, 40), frame_width = 1,
+     border_color = color.new(color.gray, 75), border_width = 1)
+if barstate.islast and showStats
+    bgS = color.new(color.black, 55)
+    statRow(r, ad, n) =>
+        table.cell(stats, 0, r, ad, text_color = color.silver, bgcolor = bgS, text_size = size.tiny, text_halign = text.align_left)
+        table.cell(stats, 1, r, str.tostring(n), text_color = n > 0 ? color.white : color.new(color.gray, 40), bgcolor = bgS, text_size = size.tiny)
+    table.cell(stats, 0, 0, "OLUŞUM SAYISI", text_color = #FFD600, bgcolor = color.new(color.black, 25), text_size = size.tiny)
+    table.cell(stats, 1, 0, "son " + str.tostring(lookN), text_color = #FFD600, bgcolor = color.new(color.black, 25), text_size = size.tiny)
+    statRow(1, "Testere", cTst)
+    statRow(2, "Dörtlü Çift Eng", cD4)
+    statRow(3, "Sihirli Engulf", cMg)
+    statRow(4, "Pin+Engulf", cPe)
+    statRow(5, "Engulf Simetri", cSm)
+    statRow(6, "Üçlü Çift Eng", cD3)
+    statRow(7, "Trend Devam", cTd)
+    statRow(8, "At Nalı", cNl)
+    statRow(9, "Fake PinBar", cFk)
+    statRow(10, "Çoklu PinBar", cCp)
+    statRow(11, "PinBar", cPn)
+    statRow(12, "Ying Yang", cYy)
+    statRow(13, "Boşalt-Doldur", cBd)
 
 // ╔═══ KONTROL PANELİ ════════════════════════════════════════════╗
 var table pnl = table.new(position.top_right, 2, 8,
