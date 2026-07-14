@@ -49,8 +49,8 @@ günde 1.000 aktif oyuncu · oyuncu başına günde 2–3 reklam gösterimi · 8
 ### Uygulama planı
 | Sürüm | Gelir özelliği |
 |---|---|
-| v1.0 (bu depo) | Gelir yok — önce oynanış ve his mükemmelleşir |
-| v1.1 | AdMob: oyun sonu interstitial + "hamle geri al / devam et" ödüllü video |
+| v1.0 | Gelir yok — önce oynanış ve his mükemmelleşir ✅ |
+| v1.1 (bu depo) | AdMob: her 3 oyun sonunda interstitial + "izle & devam et" ödüllü video ✅ (test kimlikleriyle; yayında gerçek kimlikler girilecek) |
 | v1.2 | "Reklamları Kaldır" IAP + tema paketleri (kozmetik IAP) |
 | v2.0 | Günlük görevler, lig/başarımlar (retention → reklam geliri çarpanı) |
 
@@ -68,9 +68,15 @@ günde 1.000 aktif oyuncu · oyuncu başına günde 2–3 reklam gösterimi · 8
 - Görsel dil: koyu lacivert zemin (#171A3B), 8 renkli canlı "şeker" paleti, bevel'li 3B blok görünümü,
   çok renkli logo, altın vurgular.
 
-### v1.1 görsel/his iyileştirmeleri
-Parçacık patlaması (expo'da Skia/reanimated), blok yerleşme "squash" animasyonu, ses efektleri
-(expo-audio), tema mağazası (neon / pastel / retro), gece-gündüz temaları.
+### v1.1'de eklendi ✅
+- **Parçacık patlamaları**: temizlenen hücrelerden savrulan yerçekimli/dönen kırıntılar (Animated + native driver).
+- **Ses efektleri** (expo-audio): yerleştirme, patlama, combo, rekor fanfarı, oyun sonu — tamamı
+  `scripts/gen_sounds.js` ile sentezlenir (telifsiz) + ses açma/kapama düğmesi.
+- **Reklam izle & devam et** mekaniği (oyun başına 1 kez, tahta temizlenir, skor korunur).
+- **Uygulama ikonu + splash + Google Play öne çıkan görseli + 3 tanıtım ekranı** (`blokpatlat/store/`).
+
+### v1.2 adayları
+Blok yerleşme "squash" animasyonu, tema mağazası (neon / pastel / retro), skor paylaşım kartı.
 
 ---
 

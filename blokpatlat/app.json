@@ -2,11 +2,13 @@
   "expo": {
     "name": "Blok Patlat!",
     "slug": "blokpatlat",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#171A3B",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash-icon.png",
       "backgroundColor": "#171A3B",
       "resizeMode": "contain"
     },
@@ -16,8 +18,18 @@
     },
     "android": {
       "package": "com.midasby.blokpatlat",
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#171A3B"
+      }
     },
-    "assetBundlePatterns": ["**/*"]
+    "assetBundlePatterns": ["assets/**/*"],
+    "plugins": ["react-native-google-mobile-ads"]
+  },
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-3940256099942544~3347511713",
+    "ios_app_id": "ca-app-pub-3940256099942544~1458002511",
+    "user_tracking_usage_description": "Reklamları size daha alakalı gösterebilmek için kullanılır."
   }
 }
