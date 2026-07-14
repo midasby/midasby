@@ -54,8 +54,9 @@ blokpatlat/
 │   ├── icon.png / adaptive-icon.png / splash-icon.png
 │   └── sfx/*.wav             # sentezlenmiş ses efektleri
 ├── store/                    # mağaza pazarlama görselleri (uygulamaya paketlenmez)
-│   ├── feature-graphic.png   # Google Play öne çıkan görseli (1024×500)
-│   └── promo-1..3.png        # tanıtım ekranları (1080×1920)
+│   ├── feature-graphic.png   # Google Play öne çıkan görseli — Türkçe (1024×500)
+│   ├── promo-1..3.png        # tanıtım ekranları — Türkçe (1080×1920)
+│   └── en/                   # İngilizce sürümleri (global mağaza vitrinleri için)
 ├── scripts/gen_sounds.js     # ses efektlerini yeniden üretir
 └── src/
     ├── engine.js             # saf oyun mantığı — birim testli
