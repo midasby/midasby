@@ -29,6 +29,7 @@ import PieceView from './src/components/PieceView';
 import ParticleBurst from './src/components/Particles';
 import { loadBest, saveBest, loadSoundOn, saveSoundOn } from './src/storage';
 import { initSounds, playSound, setSoundEnabled } from './src/sound';
+import { t } from './src/i18n';
 import {
   adsSupported,
   initAds,
@@ -43,7 +44,7 @@ const BOARD_PX = Math.min(SCREEN_W - 24, 430);
 const CELL = BOARD_PX / SIZE;
 const TRAY_CELL = CELL * 0.48;
 const LIFT = 60; // sürüklerken taşı parmağın üstüne kaldır (görünür kalsın)
-const TITLE = 'BLOK PATLAT!';
+const TITLE = t('title');
 
 function haptic(fn) {
   try {
@@ -410,20 +411,20 @@ export default function App() {
       {gameOverRef.current ? (
         <View style={styles.overlay}>
           <Text style={styles.overEmoji}>😵</Text>
-          <Text style={styles.overTitle}>Oyun Bitti</Text>
-          {newRecordRef.current ? <Text style={styles.record}>🎉 YENİ REKOR! 🎉</Text> : null}
+          <Text style={styles.overTitle}>{t('gameOver')}</Text>
+          {newRecordRef.current ? <Text style={styles.record}>{t('newRecord')}</Text> : null}
           <Text style={styles.overScore}>{scoreRef.current}</Text>
-          <Text style={styles.overBest}>👑 En iyi: {best}</Text>
+          <Text style={styles.overBest}>👑 {t('best')}: {best}</Text>
           {canRevive ? (
             <TouchableOpacity style={styles.reviveBtn} onPress={revive} activeOpacity={0.85}>
               <Text style={styles.reviveText}>
-                {adsSupported ? '🎬 REKLAM İZLE & DEVAM ET' : '▶️ DEVAM ET'}
+                {adsSupported ? t('watchContinue') : t('continueFree')}
               </Text>
-              <Text style={styles.reviveHint}>tahta temizlenir, skorun korunur</Text>
+              <Text style={styles.reviveHint}>{t('reviveHint')}</Text>
             </TouchableOpacity>
           ) : null}
           <TouchableOpacity style={styles.restartBtn} onPress={restart} activeOpacity={0.85}>
-            <Text style={styles.restartText}>YENİDEN OYNA</Text>
+            <Text style={styles.restartText}>{t('playAgain')}</Text>
           </TouchableOpacity>
         </View>
       ) : null}
