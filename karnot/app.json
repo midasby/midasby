@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "KârNot",
+    "slug": "karnot",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0E1116",
+    "splash": {
+      "backgroundColor": "#0E1116",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "bundleIdentifier": "com.midasby.karnot",
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.midasby.karnot",
+      "edgeToEdgeEnabled": true
+    },
+    "assetBundlePatterns": ["**/*"]
+  }
+}
