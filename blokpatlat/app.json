@@ -1,21 +1,21 @@
 {
   "expo": {
-    "name": "KârNot",
-    "slug": "karnot",
+    "name": "Blok Patlat!",
+    "slug": "blokpatlat",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "backgroundColor": "#0E1116",
+    "backgroundColor": "#171A3B",
     "splash": {
-      "backgroundColor": "#0E1116",
+      "backgroundColor": "#171A3B",
       "resizeMode": "contain"
     },
     "ios": {
-      "bundleIdentifier": "com.midasby.karnot",
-      "supportsTablet": false
+      "bundleIdentifier": "com.midasby.blokpatlat",
+      "supportsTablet": true
     },
     "android": {
-      "package": "com.midasby.karnot",
+      "package": "com.midasby.blokpatlat",
       "edgeToEdgeEnabled": true
     },
     "assetBundlePatterns": ["**/*"]
