@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "CalLens",
+    "slug": "callens",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F7F8FA",
+    "splash": {
+      "backgroundColor": "#F7F8FA",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "bundleIdentifier": "com.midasby.callens",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Take a photo of your meal so CalLens can estimate its calories.",
+        "NSPhotoLibraryUsageDescription": "Choose a photo of your meal so CalLens can estimate its calories."
+      }
+    },
+    "android": {
+      "package": "com.midasby.callens",
+      "edgeToEdgeEnabled": true,
+      "permissions": ["CAMERA"]
+    },
+    "assetBundlePatterns": ["assets/**/*"],
+    "plugins": ["expo-image-picker"]
+  }
+}
