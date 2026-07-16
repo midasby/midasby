@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import Svg, { Rect, Line } from 'react-native-svg';
-import { Card } from '../components/ui';
-import { loadRecentDays } from '../storage';
-import { sumMeals } from '../calc';
+import { View, Text, ScrollView, Alert, StyleSheet } from 'react-native';
+import Svg, { Rect, Line, Polyline, Circle } from 'react-native-svg';
+import { Card, PrimaryButton, LabeledInput } from '../components/ui';
+import { loadRecentDays, loadWeights } from '../storage';
+import { sumMeals, parseNum } from '../calc';
 import { t, currentLang } from '../i18n';
 import { colors, spacing } from '../theme';
 
@@ -49,8 +49,96 @@ function WeekChart({ days, target }) {
   );
 }
 
+const WCHART_H = 130;
+
+// Kilo çizgi grafiği: son 30 kayıt + başlangıçtan bugüne fark.
+function WeightSection({ profile, onLogWeight }) {
+  const [weights, setWeights] = useState([]);
+  const [input, setInput] = useState('');
+
+  useEffect(() => {
+    loadWeights().then(setWeights);
+  }, []);
+
+  const log = async () => {
+    const kg = parseNum(input);
+    if (isNaN(kg) || kg < 30 || kg > 300) {
+      Alert.alert('', t('obInvalid'));
+      return;
+    }
+    setWeights(await onLogWeight(kg));
+    setInput('');
+  };
+
+  const pts = weights.slice(-30);
+  let chart = null;
+  if (pts.length >= 2) {
+    const vals = pts.map((w) => w.kg);
+    const min = Math.min(...vals) - 1;
+    const max = Math.max(...vals) + 1;
+    const W = 350;
+    const coords = pts.map((w, i) => {
+      const x = (i / (pts.length - 1)) * (W - 20) + 10;
+      const y = WCHART_H - 12 - ((w.kg - min) / (max - min)) * (WCHART_H - 24);
+      return { x, y };
+    });
+    const delta = vals[vals.length - 1] - vals[0];
+    chart = (
+      <View>
+        <Svg width="100%" height={WCHART_H} viewBox={`0 0 ${W} ${WCHART_H}`} preserveAspectRatio="none">
+          <Polyline
+            points={coords.map((c) => `${c.x},${c.y}`).join(' ')}
+            fill="none"
+            stroke={colors.primary}
+            strokeWidth="3.5"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+          {coords.map((c, i) => (
+            <Circle key={i} cx={c.x} cy={c.y} r="5" fill={i === coords.length - 1 ? colors.primaryDark : colors.primary} />
+          ))}
+        </Svg>
+        <Text style={wstyles.delta}>
+          {vals[0]} kg → {vals[vals.length - 1]} kg{' '}
+          <Text style={{ color: delta <= 0 ? colors.primaryDark : colors.accent, fontWeight: '900' }}>
+            ({delta > 0 ? '+' : ''}{Math.round(delta * 10) / 10} kg)
+          </Text>
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <Card>
+      <Text style={wstyles.title}>⚖️ {t('wtTitle')}</Text>
+      {chart || <Text style={wstyles.empty}>{t('wtEmpty')}</Text>}
+      <View style={wstyles.logRow}>
+        <View style={{ flex: 1, marginRight: 10 }}>
+          <LabeledInput
+            label={t('wtToday')}
+            value={input}
+            onChangeText={setInput}
+            placeholder={String(profile.weight)}
+            keyboardType="decimal-pad"
+          />
+        </View>
+        <PrimaryButton title={t('wtLog')} onPress={log} style={{ paddingHorizontal: 26, marginBottom: 14 }} />
+      </View>
+      <Text style={wstyles.hint}>{t('wtHint')}</Text>
+    </Card>
+  );
+}
+
+const wstyles = StyleSheet.create({
+  title: { fontSize: 16, fontWeight: '800', color: colors.text, marginBottom: spacing.m },
+  empty: { color: colors.textDim, fontSize: 13, marginBottom: spacing.s, lineHeight: 19 },
+  delta: { color: colors.textDim, fontSize: 13, fontWeight: '700', textAlign: 'center', marginTop: 6, marginBottom: spacing.s },
+  logRow: { flexDirection: 'row', alignItems: 'flex-end' },
+  hint: { color: colors.textDim, fontSize: 11, lineHeight: 16 },
+});
+
 // todayMeals prop'u yalnızca yenileme tetikleyicisidir: bugün öğün eklenince geçmiş de tazelenir.
-export default function History({ profile, todayMeals }) {
+export default function History({ profile, todayMeals, onLogWeight }) {
   const [days, setDays] = useState(null);
 
   useEffect(() => {
@@ -86,6 +174,8 @@ export default function History({ profile, todayMeals }) {
           <Text style={styles.statLabel}>{t('histOnTarget')}</Text>
         </Card>
       </View>
+
+      <WeightSection profile={profile} onLogWeight={onLogWeight} />
 
       {[...days].reverse().map((d) => {
         const total = sumMeals(d.meals);

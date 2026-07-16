@@ -2,7 +2,7 @@
   "expo": {
     "name": "CalLens",
     "slug": "callens",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "backgroundColor": "#F7F8FA",
@@ -30,6 +30,15 @@
       }
     },
     "assetBundlePatterns": ["assets/**/*"],
-    "plugins": ["expo-image-picker"]
+    "plugins": [
+      "expo-image-picker",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "CalLens scans product barcodes to look up their nutrition."
+        }
+      ],
+      "expo-notifications"
+    ]
   }
 }

@@ -75,6 +75,31 @@ export async function bumpAiCount(dateKey) {
   return n;
 }
 
+const WEIGHTS_KEY = 'callens.weights.v1';
+
+// Kilo günlüğü: [{date:'YYYY-MM-DD', kg}] — tarihe göre artan sıralı.
+export async function loadWeights() {
+  try {
+    const raw = await AsyncStorage.getItem(WEIGHTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+// Bugünün kaydını ekler/günceller; güncel listeyi döndürür.
+export async function logWeight(kg) {
+  const list = (await loadWeights()).filter((w) => w.date !== todayKey());
+  list.push({ date: todayKey(), kg });
+  list.sort((a, b) => (a.date < b.date ? -1 : 1));
+  try {
+    await AsyncStorage.setItem(WEIGHTS_KEY, JSON.stringify(list));
+  } catch (e) {
+    // no-op
+  }
+  return list;
+}
+
 export async function clearAll() {
   try {
     const keys = await AsyncStorage.getAllKeys();

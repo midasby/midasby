@@ -68,9 +68,18 @@ callens/
 - **Mağaza görselleri**: uygulama ikonu + adaptive icon + splash (`assets/`) ve
   Google Play öne çıkan görseli + 3 İngilizce tanıtım ekranı (`store/`).
 
+## v0.3 ile gelenler ✅
+- **🔍 Barkod tarama**: kamerayla EAN/UPC tarama (expo-camera) ya da elle numara girişi →
+  Open Food Facts'ten (3M+ ürün, ücretsiz) besin verisi → gram girince kalori/makrolar
+  otomatik ölçeklenir. Barkod araması AI kotasından düşmez.
+- **🔔 Günlük hatırlatma**: Ayarlar'dan açılan yerel bildirim — her akşam 20:30
+  "öğünlerini kaydetmeyi unutma" (sunucu gerekmez; web'de gizlenir).
+- **⚖️ Kilo grafiği**: Geçmiş sekmesinde kilo günlüğü + SVG çizgi grafiği + başlangıçtan
+  bugüne fark; kilo kaydı günlük kalori planını da otomatik günceller.
+
 ## Yol haritası
-- **v0.3**: barkod tarama, su takibi, kilo grafiği, bildirimler ("akşam yemeğini kaydetmedin")
-- **v1.0**: mağaza lansmanı — ASO + TikTok içerik motoru (plan belgesindeki Cal AI oyun kitabı)
+- **v1.0**: mağaza lansmanı — ASO + TikTok içerik motoru (plan belgesindeki Cal AI oyun kitabı);
+  adaylar: su takibi, yemek favorileri, Apple Health / Google Fit senkronu
 
 ---
 *CalLens tahminleri bilgilendirme amaçlıdır; tıbbi veya diyetetik tavsiye değildir.*

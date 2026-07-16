@@ -9,7 +9,7 @@ import History from './src/screens/History';
 import AddMeal from './src/screens/AddMeal';
 import Settings from './src/screens/Settings';
 
-import { loadProfile, saveProfile, loadMeals, saveMeals, getAiCount, bumpAiCount, clearAll } from './src/storage';
+import { loadProfile, saveProfile, loadMeals, saveMeals, getAiCount, bumpAiCount, clearAll, logWeight } from './src/storage';
 import { dailyTarget, todayKey } from './src/calc';
 import { aiAvailable } from './src/ai';
 import { initPurchases, checkPremium, purchase } from './src/purchases';
@@ -91,6 +91,15 @@ export default function App() {
     saveProfile(next);
   };
 
+  // Kilo kaydı: günlüğe yazar + profili ve günlük hedefi günceller.
+  const handleLogWeight = async (kg) => {
+    const list = await logWeight(kg);
+    const next = { ...profile, weight: kg };
+    next.dailyTarget = dailyTarget(next);
+    handleUpdateProfile(next);
+    return list;
+  };
+
   const handleReset = async () => {
     await clearAll();
     setProfile(null);
@@ -146,7 +155,7 @@ export default function App() {
             onDeleteMeal={handleDeleteMeal}
           />
         )}
-        {tab === 'history' && <History profile={profile} todayMeals={meals} />}
+        {tab === 'history' && <History profile={profile} todayMeals={meals} onLogWeight={handleLogWeight} />}
         {tab === 'settings' && (
           <Settings
             profile={profile}

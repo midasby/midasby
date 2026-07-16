@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Alert, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Alert, Switch, StyleSheet } from 'react-native';
 import { Card, Chip, LabeledInput, PrimaryButton } from '../components/ui';
 import { dailyTarget, parseNum } from '../calc';
 import { restore, purchasesSupported } from '../purchases';
+import { enableReminder, disableReminder, notificationsSupported } from '../notifications';
+import { logWeight } from '../storage';
+import { colors as themeColors } from '../theme';
 import { t } from '../i18n';
 import { colors, spacing } from '../theme';
 
@@ -19,7 +22,21 @@ export default function Settings({ profile, onUpdateProfile, onReset }) {
     const next = { ...profile, goal, weight: w };
     next.dailyTarget = dailyTarget(next);
     onUpdateProfile(next);
+    logWeight(w); // kilo grafiğine de işle
     Alert.alert('', t('updated'));
+  };
+
+  const toggleReminder = async (value) => {
+    if (value) {
+      const ok = await enableReminder();
+      if (!ok) {
+        Alert.alert('', t('notifDenied'));
+        return;
+      }
+    } else {
+      await disableReminder();
+    }
+    onUpdateProfile({ ...profile, reminder: value });
   };
 
   const confirmReset = () => {
@@ -62,6 +79,22 @@ export default function Settings({ profile, onUpdateProfile, onReset }) {
         <PrimaryButton title={t('setRecalc')} tone="soft" onPress={update} />
       </Card>
 
+      {notificationsSupported ? (
+        <Card>
+          <View style={styles.notifRow}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={styles.sectionTitle}>🔔 {t('notifRow')}</Text>
+              <Text style={styles.notifDesc}>{t('notifDesc')}</Text>
+            </View>
+            <Switch
+              value={!!profile.reminder}
+              onValueChange={toggleReminder}
+              trackColor={{ true: themeColors.primary, false: themeColors.ringTrack }}
+            />
+          </View>
+        </Card>
+      ) : null}
+
       <Card>
         <Text style={styles.sectionTitle}>{t('setData')}</Text>
         <PrimaryButton title={t('setReset')} tone="danger" onPress={confirmReset} />
@@ -79,6 +112,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '900', color: colors.text, marginBottom: spacing.m },
   sectionTitle: { fontSize: 16, fontWeight: '800', color: colors.text, marginBottom: spacing.s },
   premiumStatus: { fontSize: 14, color: colors.textDim },
+  notifRow: { flexDirection: 'row', alignItems: 'center' },
+  notifDesc: { fontSize: 12, color: colors.textDim, marginTop: 2 },
   label: { fontSize: 13, color: colors.textDim, fontWeight: '600', marginBottom: 6 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.s },
   privacy: { fontSize: 12, color: colors.textDim, textAlign: 'center', marginTop: spacing.m, lineHeight: 17 },
