@@ -5,14 +5,17 @@ import { StatusBar } from 'expo-status-bar';
 import Onboarding from './src/screens/Onboarding';
 import Paywall from './src/screens/Paywall';
 import Home from './src/screens/Home';
+import History from './src/screens/History';
 import AddMeal from './src/screens/AddMeal';
 import Settings from './src/screens/Settings';
 
 import { loadProfile, saveProfile, loadMeals, saveMeals, getAiCount, bumpAiCount, clearAll } from './src/storage';
 import { dailyTarget, todayKey } from './src/calc';
 import { aiAvailable } from './src/ai';
+import { initPurchases, checkPremium, purchase } from './src/purchases';
 import { t } from './src/i18n';
 import { colors } from './src/theme';
+import { Alert } from 'react-native';
 
 const FREE_DAILY_AI = 3; // ücretsiz planda günlük fotoğraf analizi hakkı
 
@@ -27,9 +30,14 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
+      await initPurchases();
       const p = await loadProfile();
       if (p && p.onboarded) {
-        setProfile(p);
+        // Mağazadan gerçek abonelik durumunu doğrula (yeniden kurulum/cihaz değişimi)
+        const storePremium = await checkPremium();
+        const next = storePremium === null ? p : { ...p, premium: storePremium };
+        if (storePremium !== null && storePremium !== p.premium) saveProfile(next);
+        setProfile(next);
         setMeals(await loadMeals(todayKey()));
         setAiCount(await getAiCount(todayKey()));
         setScreen('main');
@@ -51,8 +59,13 @@ export default function App() {
     setScreen('paywall');
   };
 
-  // v0.2: RevenueCat satın alma burada tetiklenecek; MVP'de deneme = premium.
-  const handleSubscribe = () => {
+  // RevenueCat satın alma; native modül yoksa (Expo Go/web) simüle edilir.
+  const handleSubscribe = async (plan) => {
+    const ok = await purchase(plan);
+    if (!ok) {
+      Alert.alert('', t('purchaseFail'));
+      return;
+    }
     const next = { ...profile, premium: true };
     setProfile(next);
     saveProfile(next);
@@ -133,18 +146,26 @@ export default function App() {
             onDeleteMeal={handleDeleteMeal}
           />
         )}
+        {tab === 'history' && <History profile={profile} todayMeals={meals} />}
         {tab === 'settings' && (
-          <Settings profile={profile} onUpdateProfile={handleUpdateProfile} onReset={handleReset} />
+          <Settings
+            profile={profile}
+            onUpdateProfile={handleUpdateProfile}
+            onReset={handleReset}
+          />
         )}
       </View>
 
       <View style={styles.tabBar}>
-        <TouchableOpacity style={styles.tabItem} onPress={() => setTab('home')} activeOpacity={0.7}>
-          <Text style={[styles.tabIcon, tab !== 'home' && styles.tabInactive]}>🏠</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tabItem} onPress={() => setTab('settings')} activeOpacity={0.7}>
-          <Text style={[styles.tabIcon, tab !== 'settings' && styles.tabInactive]}>⚙️</Text>
-        </TouchableOpacity>
+        {[
+          ['home', '🏠'],
+          ['history', '📊'],
+          ['settings', '⚙️'],
+        ].map(([key, icon]) => (
+          <TouchableOpacity key={key} style={styles.tabItem} onPress={() => setTab(key)} activeOpacity={0.7}>
+            <Text style={[styles.tabIcon, tab !== key && styles.tabInactive]}>{icon}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       <AddMeal

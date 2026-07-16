@@ -2,11 +2,13 @@
   "expo": {
     "name": "CalLens",
     "slug": "callens",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "backgroundColor": "#F7F8FA",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash-icon.png",
       "backgroundColor": "#F7F8FA",
       "resizeMode": "contain"
     },
@@ -21,7 +23,11 @@
     "android": {
       "package": "com.midasby.callens",
       "edgeToEdgeEnabled": true,
-      "permissions": ["CAMERA"]
+      "permissions": ["CAMERA"],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#22C55E"
+      }
     },
     "assetBundlePatterns": ["assets/**/*"],
     "plugins": ["expo-image-picker"]

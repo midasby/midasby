@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, Alert, StyleSheet } from 'react-native';
 import { Card, Chip, LabeledInput, PrimaryButton } from '../components/ui';
 import { dailyTarget, parseNum } from '../calc';
+import { restore, purchasesSupported } from '../purchases';
 import { t } from '../i18n';
 import { colors, spacing } from '../theme';
 
@@ -35,6 +36,18 @@ export default function Settings({ profile, onUpdateProfile, onReset }) {
       <Card>
         <Text style={styles.sectionTitle}>{t('setPremium')}</Text>
         <Text style={styles.premiumStatus}>{profile.premium ? t('setPremiumOn') : t('setPremiumOff')}</Text>
+        {!profile.premium && purchasesSupported ? (
+          <PrimaryButton
+            title={t('setRestore')}
+            tone="soft"
+            style={{ marginTop: spacing.m }}
+            onPress={async () => {
+              const ok = await restore();
+              if (ok) onUpdateProfile({ ...profile, premium: true });
+              Alert.alert('', ok ? t('restoreOk') : t('restoreFail'));
+            }}
+          />
+        ) : null}
       </Card>
 
       <Card>

@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { todayKey } from './calc';
 
 const PROFILE_KEY = 'callens.profile.v1';
 const MEALS_PREFIX = 'callens.meals.'; // + YYYY-MM-DD
@@ -35,6 +36,22 @@ export async function saveMeals(dateKey, meals) {
     await AsyncStorage.setItem(MEALS_PREFIX + dateKey, JSON.stringify(meals));
   } catch (e) {
     // no-op
+  }
+}
+
+// Son n günün öğünleri (bugün dahil), eskiden yeniye sıralı: [{key, date, meals}]
+export async function loadRecentDays(n = 7) {
+  const days = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    days.push({ key: todayKey(d), date: new Date(d) });
+  }
+  try {
+    const results = await AsyncStorage.multiGet(days.map((d) => MEALS_PREFIX + d.key));
+    return days.map((d, i) => ({ ...d, meals: results[i][1] ? JSON.parse(results[i][1]) : [] }));
+  } catch (e) {
+    return days.map((d) => ({ ...d, meals: [] }));
   }
 }
 

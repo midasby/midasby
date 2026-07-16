@@ -8,10 +8,12 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { currentLang } from './i18n';
 
+const PROXY_URL = (process.env.EXPO_PUBLIC_PROXY_URL || '').replace(/\/$/, '');
 const API_KEY = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY || '';
 const MODEL = process.env.EXPO_PUBLIC_AI_MODEL || 'claude-opus-4-8';
 
-export const aiAvailable = !!API_KEY;
+// Öncelik: backend proxy (üretim) → doğrudan anahtar (yalnızca geliştirme) → demo mod
+export const aiAvailable = !!PROXY_URL || !!API_KEY;
 
 let client = null;
 function getClient() {
@@ -53,6 +55,24 @@ const DEMO_FOODS = {
 };
 let demoIndex = 0;
 
+function toResult(data) {
+  if (data.no_food) {
+    const err = new Error('no_food');
+    err.code = 'no_food';
+    throw err;
+  }
+  return {
+    name: data.name,
+    kcal: data.kcal,
+    protein: data.protein_g,
+    carbs: data.carbs_g,
+    fat: data.fat_g,
+    portion: data.portion,
+    confidence: data.confidence,
+    demo: false,
+  };
+}
+
 export async function analyzeFoodPhoto({ base64, mediaType = 'image/jpeg' }) {
   const lang = currentLang();
 
@@ -62,6 +82,22 @@ export async function analyzeFoodPhoto({ base64, mediaType = 'image/jpeg' }) {
     const list = DEMO_FOODS[lang] || DEMO_FOODS.en;
     const food = list[demoIndex++ % list.length];
     return { ...food, confidence: 0.9, demo: true };
+  }
+
+  // Üretim yolu: anahtar sunucuda kalır (server/README.md ile dağıtılır)
+  if (PROXY_URL) {
+    const res = await fetch(`${PROXY_URL}/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base64, mediaType, lang }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const err = new Error(data.error || 'analysis_failed');
+      if (data.error === 'refused') err.code = 'refused';
+      throw err;
+    }
+    return toResult(data);
   }
 
   const prompt =
@@ -89,21 +125,5 @@ export async function analyzeFoodPhoto({ base64, mediaType = 'image/jpeg' }) {
   }
 
   const textBlock = response.content.find((b) => b.type === 'text');
-  const data = JSON.parse(textBlock.text);
-  if (data.no_food) {
-    const err = new Error('no_food');
-    err.code = 'no_food';
-    throw err;
-  }
-
-  return {
-    name: data.name,
-    kcal: data.kcal,
-    protein: data.protein_g,
-    carbs: data.carbs_g,
-    fat: data.fat_g,
-    portion: data.portion,
-    confidence: data.confidence,
-    demo: false,
-  };
+  return toResult(JSON.parse(textBlock.text));
 }

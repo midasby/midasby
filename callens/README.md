@@ -58,8 +58,17 @@ callens/
     └── screens/              # Onboarding, Paywall, Home, AddMeal, Settings
 ```
 
+## v0.2 ile gelenler ✅
+- **RevenueCat aboneliği** (`src/purchases.js`): gerçek satın alma + geri yükleme; native modül
+  yoksa (Expo Go/web) huni simüle edilir. Yayın öncesi yapılacaklar dosyanın başında yorum olarak.
+- **Backend proxy** (`server/`): Cloudflare Worker — API anahtarı sunucuda kalır;
+  dağıtım 5 dakika (`server/README.md`). `EXPO_PUBLIC_PROXY_URL` verilince istemci proxy'yi kullanır.
+- **Geçmiş sekmesi 📊**: son 7 gün çubuk grafiği (hedef çizgisiyle), günlük ortalama,
+  "hedefte gün" sayısı ve gün gün döküm.
+- **Mağaza görselleri**: uygulama ikonu + adaptive icon + splash (`assets/`) ve
+  Google Play öne çıkan görseli + 3 İngilizce tanıtım ekranı (`store/`).
+
 ## Yol haritası
-- **v0.2**: RevenueCat abonelik, backend proxy, öğün geçmişi (önceki günler), haftalık grafik
 - **v0.3**: barkod tarama, su takibi, kilo grafiği, bildirimler ("akşam yemeğini kaydetmedin")
 - **v1.0**: mağaza lansmanı — ASO + TikTok içerik motoru (plan belgesindeki Cal AI oyun kitabı)
 
