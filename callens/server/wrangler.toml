@@ -1,0 +1,7 @@
+name = "callens-proxy"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# API anahtarı buraya YAZILMAZ — şu komutla gizli değişken olarak eklenir:
+#   npx wrangler secret put ANTHROPIC_API_KEY

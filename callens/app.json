@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "CalLens",
+    "slug": "callens",
+    "version": "0.3.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F7F8FA",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "backgroundColor": "#F7F8FA",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "bundleIdentifier": "com.midasby.callens",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Take a photo of your meal so CalLens can estimate its calories.",
+        "NSPhotoLibraryUsageDescription": "Choose a photo of your meal so CalLens can estimate its calories."
+      }
+    },
+    "android": {
+      "package": "com.midasby.callens",
+      "edgeToEdgeEnabled": true,
+      "permissions": ["CAMERA"],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#22C55E"
+      }
+    },
+    "assetBundlePatterns": ["assets/**/*"],
+    "plugins": [
+      "expo-image-picker",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "CalLens scans product barcodes to look up their nutrition."
+        }
+      ],
+      "expo-notifications"
+    ]
+  }
+}
